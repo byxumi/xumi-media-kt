@@ -149,7 +149,7 @@ class AppState(private val store: AuthStore) : ViewModel() {
     }
 
     /** 切换主题模式: "system" / "dark" / "light" */
-    fun setThemeMode(mode: String) {
+    fun updateThemeMode(mode: String) {
         themeMode = mode
         store.themeMode = mode
     }

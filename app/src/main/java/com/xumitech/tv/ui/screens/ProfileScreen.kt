@@ -125,7 +125,7 @@ fun ProfileScreen(
                         "dark" -> "light"
                         else -> "system"
                     }
-                    appState.setThemeMode(next)
+                    appState.updateThemeMode(next)
                 },
             )
             SettingsItem(
