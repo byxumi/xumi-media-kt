@@ -6,6 +6,10 @@ build/
 *.iml
 local.properties
 build_logs/
+dist/
+
+# 交接文档(绝不推送)
+HANDOVER*.md
 
 # 系统
 .DS_Store
