@@ -54,6 +54,7 @@ import com.xumitech.tv.ui.components.ShimmerBox
 import com.xumitech.tv.ui.components.TodayUpdatedCard
 import kotlinx.coroutines.launch
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     appState: AppState,
