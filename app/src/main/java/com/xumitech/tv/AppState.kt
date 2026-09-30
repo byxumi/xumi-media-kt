@@ -32,6 +32,10 @@ class AppState(private val store: AuthStore) : ViewModel() {
     var authState by mutableStateOf<AuthState>(AuthState.Unknown)
         private set
 
+    /** 主题模式: "system" / "dark" / "light" */
+    var themeMode by mutableStateOf(store.themeMode)
+        private set
+
     var siteName by mutableStateOf("须弥Media")
         private set
 
@@ -142,6 +146,12 @@ class AppState(private val store: AuthStore) : ViewModel() {
             store.clear()
             refreshAuthFromApi()
         }
+    }
+
+    /** 切换主题模式: "system" / "dark" / "light" */
+    fun setThemeMode(mode: String) {
+        themeMode = mode
+        store.themeMode = mode
     }
 
     private fun refreshBase() {

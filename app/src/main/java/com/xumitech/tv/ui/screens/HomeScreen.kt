@@ -25,8 +25,14 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,6 +52,7 @@ import com.xumitech.tv.ui.components.PosterTile
 import com.xumitech.tv.ui.components.SectionHeader
 import com.xumitech.tv.ui.components.ShimmerBox
 import com.xumitech.tv.ui.components.TodayUpdatedCard
+import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(
@@ -61,16 +68,33 @@ fun HomeScreen(
     val followings = appState.recentFollowings
     val today = appState.todayUpdated
     val todayItems = today?.items?.take(12) ?: emptyList()
+    var refreshing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    fun refreshHome() {
+        scope.launch {
+            refreshing = true
+            appState.loadHome {
+                appState.loadAll()
+                refreshing = false
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         appState.loadHome()
         appState.loadAll()
     }
 
-    LazyColumn(
+    PullToRefreshBox(
+        isRefreshing = refreshing,
+        onRefresh = ::refreshHome,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 24.dp),
     ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 24.dp),
+        ) {
         item {
             HomeHeader(appState, onSearch, onOpenDiscover)
         }
@@ -193,6 +217,7 @@ fun HomeScreen(
                 val section = sections[i]
                 SectionRow(section.title, section.items, onOpenItem)
             }
+        }
         }
     }
 }

@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -43,11 +44,17 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            XumiTheme {
+            val appState: AppState = viewModel(
+                factory = AppStateFactory(applicationContext),
+            )
+            // 主题跟随 AppState.themeMode（"system" 随系统 / "dark" 强制深色 / "light" 强制浅色）
+            val darkTheme = when (appState.themeMode) {
+                "dark" -> true
+                "light" -> false
+                else -> isSystemInDarkTheme()
+            }
+            XumiTheme(darkTheme = darkTheme) {
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    val appState: AppState = viewModel(
-                        factory = AppStateFactory(applicationContext),
-                    )
                     var showLogin by remember {
                         mutableStateOf(
                             appState.authState is AuthState.Unknown ||

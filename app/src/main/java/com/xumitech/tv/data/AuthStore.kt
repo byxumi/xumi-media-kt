@@ -32,6 +32,13 @@ class AuthStore(context: Context) {
             prefs.edit().putString(KEY_ROLE, v).apply()
         }
 
+    /** 主题模式: "system" / "dark" / "light" */
+    var themeMode: String
+        get() = prefs.getString(KEY_THEME_MODE, "system") ?: "system"
+        set(v) {
+            prefs.edit().putString(KEY_THEME_MODE, v).apply()
+        }
+
     /** 启动时恢复登录态。 */
     fun restore() {
         MoonTvApi.configure(server, cookie.takeIf { it.isNotEmpty() })
@@ -57,5 +64,6 @@ class AuthStore(context: Context) {
         private const val KEY_COOKIE = "auth_cookie"
         private const val KEY_USERNAME = "username"
         private const val KEY_ROLE = "role"
+        private const val KEY_THEME_MODE = "theme_mode"
     }
 }

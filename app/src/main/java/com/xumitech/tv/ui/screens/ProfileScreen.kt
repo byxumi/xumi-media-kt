@@ -109,11 +109,24 @@ fun ProfileScreen(
 
         // 设置组
         SettingsGroup {
+            // 深色模式：点击循环 system → dark → light
+            val themeLabel = when (appState.themeMode) {
+                "dark" -> "深色"
+                "light" -> "浅色"
+                else -> "随系统"
+            }
             SettingsItem(
                 icon = Icons.Rounded.DarkMode,
                 title = "深色模式",
-                subtitle = "随系统",
-                onClick = {},
+                subtitle = themeLabel,
+                onClick = {
+                    val next = when (appState.themeMode) {
+                        "system" -> "dark"
+                        "dark" -> "light"
+                        else -> "system"
+                    }
+                    appState.setThemeMode(next)
+                },
             )
             SettingsItem(
                 icon = Icons.Rounded.LockReset,
