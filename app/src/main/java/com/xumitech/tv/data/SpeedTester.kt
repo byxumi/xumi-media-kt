@@ -1,5 +1,7 @@
 package com.xumitech.tv.data
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
@@ -75,7 +77,13 @@ object SpeedTester {
         .readTimeout(8, TimeUnit.SECONDS)
         .build()
 
-    fun testSpeed(url: String, referer: String = ""): SpeedResult {
+    /** suspend 版本：强制 IO 线程，避免主线程 NetworkOnMainThreadException。 */
+    suspend fun testSpeed(url: String, referer: String = ""): SpeedResult =
+        withContext(Dispatchers.IO) {
+            testSpeedSync(url, referer)
+        }
+
+    private fun testSpeedSync(url: String, referer: String = ""): SpeedResult {
         val baseUrl = url.toHttpUrlOrNull() ?: return SpeedResult.FAIL
         return try {
             // 1. 拉 m3u8 测延迟

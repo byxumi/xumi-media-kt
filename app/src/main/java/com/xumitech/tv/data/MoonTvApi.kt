@@ -15,6 +15,8 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -85,14 +87,18 @@ object MoonTvApi {
         return h
     }
 
-    private inline fun <T> call(
+    /**
+     * 统一请求执行（强制 IO 线程，避免主线程 NetworkOnMainThreadException）。
+     * 所有公开方法均为 suspend，调用方需在协程内调用。
+     */
+    private suspend fun <T> call(
         method: String,
         path: String,
         withCookie: Boolean = true,
         query: Map<String, String> = emptyMap(),
         body: Map<String, Any?>? = null,
         block: (Response) -> T,
-    ): T {
+    ): T = withContext(Dispatchers.IO) {
         val ub = (server + path).toHttpUrl().newBuilder()
         query.forEach { (k, v) -> ub.addQueryParameter(k, v) }
         val rb = Request.Builder().url(ub.build())
@@ -118,7 +124,7 @@ object MoonTvApi {
                     }
                 }
             }
-            return block(res)
+            block(res)
         }
     }
 
@@ -195,7 +201,7 @@ object MoonTvApi {
     }
 
     // ---------------- 认证 ----------------
-    fun login(username: String, password: String): String {
+    suspend fun login(username: String, password: String): String {
         call("POST", "/api/login", withCookie = false,
             body = mapOf("username" to username, "password" to password)) { res ->
             res.code // set-cookie 已在 call 中捕获
@@ -203,7 +209,7 @@ object MoonTvApi {
         return authCookie ?: ""
     }
 
-    fun register(username: String, password: String): String {
+    suspend fun register(username: String, password: String): String {
         call("POST", "/api/register", withCookie = false,
             body = mapOf("username" to username, "password" to password)) { res ->
             res.code
@@ -211,7 +217,7 @@ object MoonTvApi {
         return authCookie ?: ""
     }
 
-    fun logout() {
+    suspend fun logout() {
         try {
             call("POST", "/api/logout") { res -> res.code }
         } catch (_: Exception) {}
@@ -220,25 +226,25 @@ object MoonTvApi {
     }
 
     // ---------------- 基础数据 ----------------
-    fun getServerConfig(): ServerConfig {
+    suspend fun getServerConfig(): ServerConfig {
         return call("GET", "/api/server-config", withCookie = false) { res ->
             ServerConfig.fromJson(parseObject(res))
         }
     }
 
-    fun getSources(): List<Source> {
+    suspend fun getSources(): List<Source> {
         return call("GET", "/api/config/sources") { res ->
             parseList(res).map { Source.fromJson(it) }
         }
     }
 
-    fun detail(id: String, source: String): SearchResult {
+    suspend fun detail(id: String, source: String): SearchResult {
         return call("GET", "/api/detail", query = mapOf("id" to id, "source" to source)) { res ->
             SearchResult.fromJson(parseObject(res))
         }
     }
 
-    fun searchVideo(query: String, stream: String = "0"): List<SearchResult> {
+    suspend fun searchVideo(query: String, stream: String = "0"): List<SearchResult> {
         return call("GET", "/api/search", query = mapOf("q" to query, "stream" to stream)) { res ->
             val j = parseObject(res)
             (j["results"] as? JsonArray)?.mapNotNull {
@@ -248,7 +254,7 @@ object MoonTvApi {
     }
 
     /** 搜索建议（学 LunaTV /api/search/suggestions）。失败静默返回空。 */
-    fun searchSuggestions(query: String): List<String> {
+    suspend fun searchSuggestions(query: String): List<String> {
         if (query.isBlank()) return emptyList()
         return try {
             call("GET", "/api/search/suggestions", query = mapOf("q" to query)) { res ->
@@ -263,14 +269,14 @@ object MoonTvApi {
     }
 
     /** 修改密码（学 LunaTV /api/change-password）。 */
-    fun changePassword(oldPassword: String, newPassword: String) {
+    suspend fun changePassword(oldPassword: String, newPassword: String) {
         call("POST", "/api/change-password",
             body = mapOf("oldPassword" to oldPassword, "newPassword" to newPassword)) { res ->
             res.code
         }
     }
 
-    fun getDoubanRecommends(kind: String, limit: Int = 20, start: Int = 0): List<DoubanItem> {
+    suspend fun getDoubanRecommends(kind: String, limit: Int = 20, start: Int = 0): List<DoubanItem> {
         return call("GET", "/api/douban/recommends",
             query = mapOf("kind" to kind, "limit" to "$limit", "start" to "$start")) { res ->
             val j = parseObject(res)
@@ -280,7 +286,7 @@ object MoonTvApi {
         }
     }
 
-    fun getDoubanCategories(
+    suspend fun getDoubanCategories(
         kind: String,
         category: String = "",
         type: String = "",
@@ -299,7 +305,7 @@ object MoonTvApi {
     }
 
     // ---------------- 追更（学网页端 Following） ----------------
-    fun getFollowings(): Map<String, Following> {
+    suspend fun getFollowings(): Map<String, Following> {
         return call("GET", "/api/followings") { res ->
             val j = parseObject(res)
             val out = mutableMapOf<String, Following>()
@@ -310,17 +316,17 @@ object MoonTvApi {
         }
     }
 
-    fun saveFollowing(key: String, f: Following) {
+    suspend fun saveFollowing(key: String, f: Following) {
         call("POST", "/api/followings",
             body = mapOf("key" to key, "following" to f.toJsonMap())) { res -> res.code }
     }
 
-    fun deleteFollowing(key: String) {
+    suspend fun deleteFollowing(key: String) {
         call("DELETE", "/api/followings", query = mapOf("key" to key)) { res -> res.code }
     }
 
     // ---------------- 收藏 ----------------
-    fun getFavorites(): Map<String, Favorite> {
+    suspend fun getFavorites(): Map<String, Favorite> {
         return call("GET", "/api/favorites") { res ->
             val j = parseObject(res)
             val out = mutableMapOf<String, Favorite>()
@@ -331,17 +337,17 @@ object MoonTvApi {
         }
     }
 
-    fun saveFavorite(key: String, f: Favorite) {
+    suspend fun saveFavorite(key: String, f: Favorite) {
         call("POST", "/api/favorites",
             body = mapOf("key" to key, "favorite" to f.toJsonMap())) { res -> res.code }
     }
 
-    fun deleteFavorite(key: String) {
+    suspend fun deleteFavorite(key: String) {
         call("DELETE", "/api/favorites", query = mapOf("key" to key)) { res -> res.code }
     }
 
     // ---------------- 播放记录 ----------------
-    fun getPlayRecords(): Map<String, PlayRecord> {
+    suspend fun getPlayRecords(): Map<String, PlayRecord> {
         return call("GET", "/api/playrecords") { res ->
             val j = parseObject(res)
             val out = mutableMapOf<String, PlayRecord>()
@@ -352,36 +358,36 @@ object MoonTvApi {
         }
     }
 
-    fun savePlayRecord(key: String, r: PlayRecord) {
+    suspend fun savePlayRecord(key: String, r: PlayRecord) {
         call("POST", "/api/playrecords",
             body = mapOf("key" to key, "record" to r.toJsonMap())) { res -> res.code }
     }
 
-    fun deletePlayRecord(key: String) {
+    suspend fun deletePlayRecord(key: String) {
         call("DELETE", "/api/playrecords", query = mapOf("key" to key)) { res -> res.code }
     }
 
     // ---------------- 搜索历史 ----------------
-    fun getSearchHistory(): List<String> {
+    suspend fun getSearchHistory(): List<String> {
         return call("GET", "/api/searchhistory") { res ->
             parseStringList(res)
         }
     }
 
-    fun addSearchHistory(keyword: String): List<String> {
+    suspend fun addSearchHistory(keyword: String): List<String> {
         return call("POST", "/api/searchhistory",
             body = mapOf("keyword" to keyword)) { res ->
             parseStringList(res)
         }
     }
 
-    fun deleteSearchHistory(keyword: String) {
+    suspend fun deleteSearchHistory(keyword: String) {
         call("DELETE", "/api/searchhistory",
             query = mapOf("keyword" to keyword)) { res -> res.code }
     }
 
     // ---------------- 今日新更 ----------------
-    fun getTodayUpdated(): TodayUpdatedRecord? {
+    suspend fun getTodayUpdated(): TodayUpdatedRecord? {
         return call("GET", "/api/today-updated") { res ->
             val j = parseObject(res)
             if (j["items"] != null) TodayUpdatedRecord.fromJson(j) else null

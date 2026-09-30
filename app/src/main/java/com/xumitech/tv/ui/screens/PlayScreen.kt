@@ -71,6 +71,9 @@ import com.xumitech.tv.model.Favorite
 import com.xumitech.tv.model.PlayRecord
 import com.xumitech.tv.model.SearchResult
 import com.xumitech.tv.model.VideoGroup
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -120,12 +123,15 @@ fun PlayScreen(
         val results = mutableMapOf<String, SpeedResult>()
         // 分批并发（每批 4）
         for (batch in sources.chunked(4)) {
-            val batchResults = batch.map { src ->
-                SpeedTester.testSpeed(
-                    src.episodes.firstOrNull() ?: "",
-                    refererOf(src),
-                )
+            val deferred = batch.map { src ->
+                coroutineScope.async {
+                    SpeedTester.testSpeed(
+                        src.episodes.firstOrNull() ?: "",
+                        refererOf(src),
+                    )
+                }
             }
+            val batchResults = deferred.awaitAll()
             batch.forEachIndexed { i, src ->
                 results[src.key] = batchResults.getOrNull(i) ?: SpeedResult.FAIL
                 testProgress = results.size
