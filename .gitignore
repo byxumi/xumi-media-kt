@@ -1,0 +1,11 @@
+# 构建产物
+build/
+.gradle/
+.idea/
+.kotlin/
+*.iml
+local.properties
+build_logs/
+
+# 系统
+.DS_Store
