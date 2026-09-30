@@ -223,7 +223,7 @@ fun DiscoverScreen(
             else -> LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
                 state = gridState,
-                contentPadding = PaddingValues(horizontal = 12.dp, bottom = 32.dp),
+                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 32.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
                 modifier = Modifier.fillMaxSize(),
