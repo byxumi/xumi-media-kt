@@ -221,6 +221,11 @@ private fun DetailContent(
     val isFav = appState.favorites.containsKey(current.key)
     val isFollowing = appState.followings.containsKey(current.key)
 
+    // 已看集数（学网页端追更 watched_episodes：取本片播放记录里看过的最大集数）
+    val watchedCount = group.sources.maxOfOrNull { src ->
+        appState.playRecords[src.key]?.index ?: 0
+    } ?: 0
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 32.dp),
@@ -359,7 +364,7 @@ private fun DetailContent(
                                 title = current.title,
                                 sourceName = current.sourceName,
                                 totalEpisodes = current.episodes.size,
-                                watchedEpisodes = 0,
+                                watchedEpisodes = watchedCount,
                                 year = current.year,
                                 cover = current.poster,
                                 saveTime = System.currentTimeMillis(),

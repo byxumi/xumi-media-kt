@@ -40,10 +40,12 @@ import com.xumitech.tv.HomeSection
 import com.xumitech.tv.model.DoubanItem
 import com.xumitech.tv.ui.components.ContinueWatchingCard
 import com.xumitech.tv.ui.components.EmptyState
+import com.xumitech.tv.ui.components.FollowingCard
 import com.xumitech.tv.ui.components.HomeSkeleton
 import com.xumitech.tv.ui.components.PosterTile
 import com.xumitech.tv.ui.components.SectionHeader
 import com.xumitech.tv.ui.components.ShimmerBox
+import com.xumitech.tv.ui.components.TodayUpdatedCard
 
 @Composable
 fun HomeScreen(
@@ -54,6 +56,11 @@ fun HomeScreen(
 ) {
     val sections = appState.homeSections
     val loading = appState.homeLoading
+    // 顶层的状态读取会被 Compose 追踪：这些数据变化会触发重组
+    val records = appState.recentRecords
+    val followings = appState.recentFollowings
+    val today = appState.todayUpdated
+    val todayItems = today?.items?.take(12) ?: emptyList()
 
     LaunchedEffect(Unit) {
         appState.loadHome()
@@ -69,7 +76,6 @@ fun HomeScreen(
         }
 
         // 继续观看
-        val records = appState.recentRecords
         if (records.isNotEmpty()) {
             item {
                 SectionHeader("继续观看")
@@ -92,6 +98,74 @@ fun HomeScreen(
                                         source = "",
                                         sourceName = r.sourceName,
                                         year = r.year,
+                                    ),
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+        }
+
+        // 我的追更（学网页端首页追更模块）
+        if (followings.isNotEmpty()) {
+            item {
+                SectionHeader("我的追更")
+            }
+            item {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(followings, key = { it.first }) { (key, f) ->
+                        FollowingCard(
+                            title = f.title,
+                            poster = f.cover,
+                            watchedEpisodes = f.watchedEpisodes,
+                            totalEpisodes = f.totalEpisodes,
+                            onClick = {
+                                onOpenItem(
+                                    DoubanItem(
+                                        id = "",
+                                        title = f.title,
+                                        poster = f.cover,
+                                        source = "",
+                                        sourceName = f.sourceName,
+                                        year = f.year,
+                                    ),
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+        }
+
+        // 今日新更
+        if (todayItems.isNotEmpty()) {
+            item {
+                SectionHeader("今日新更", subtitle = today?.date?.takeIf { it.isNotBlank() })
+            }
+            item {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(todayItems, key = { it.source + it.id + it.title }) { it ->
+                        TodayUpdatedCard(
+                            title = it.title,
+                            poster = it.poster,
+                            sourceName = it.sourceName,
+                            newEpisodes = it.newEpisodes,
+                            onClick = {
+                                onOpenItem(
+                                    DoubanItem(
+                                        id = "",
+                                        title = it.title,
+                                        poster = it.poster,
+                                        source = "",
+                                        sourceName = it.sourceName,
+                                        year = it.year,
                                     ),
                                 )
                             },

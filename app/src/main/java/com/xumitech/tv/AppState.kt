@@ -14,6 +14,7 @@ import com.xumitech.tv.model.PlayRecord
 import com.xumitech.tv.model.SearchResult
 import com.xumitech.tv.model.ServerConfig
 import com.xumitech.tv.model.Source
+import com.xumitech.tv.model.TodayUpdatedRecord
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -43,6 +44,10 @@ class AppState(private val store: AuthStore) : ViewModel() {
     var homeLoading by mutableStateOf(false)
         private set
 
+    // 今日新更
+    var todayUpdated by mutableStateOf<TodayUpdatedRecord?>(null)
+        private set
+
     // 收藏 / 播放记录 / 追更 / 搜索历史
     var favorites by mutableStateOf<Map<String, Favorite>>(emptyMap())
         private set
@@ -53,11 +58,22 @@ class AppState(private val store: AuthStore) : ViewModel() {
     var searchHistory by mutableStateOf<List<String>>(emptyList())
         private set
 
-    /** 播放记录按保存时间倒序（首页「继续观看」用）。 */
+    /**
+     * 播放记录按保存时间倒序（首页「继续观看」用）。
+     * 学 Flutter 版：只展示真看过一段的（playTime>5 且 totalTime>0）。
+     */
     val recentRecords: List<PlayRecord>
         get() = playRecords.values
+            .filter { it.playTime > 5 && it.totalTime > 0 }
             .sortedByDescending { it.saveTime }
+            .take(10)
+
+    /** 追更按保存时间倒序（首页「我的追更」用）。 */
+    val recentFollowings: List<Pair<String, Following>>
+        get() = followings.entries
+            .sortedByDescending { it.value.saveTime }
             .take(12)
+            .map { it.key to it.value }
 
     val isLoggedIn: Boolean get() = authState is AuthState.LoggedIn
 
@@ -145,6 +161,15 @@ class AppState(private val store: AuthStore) : ViewModel() {
         viewModelScope.launch {
             homeLoading = true
             val sections = mutableListOf<HomeSection>()
+
+            // 并行：今天新更（独立协程，不阻塞首页区块）
+            viewModelScope.launch {
+                try {
+                    todayUpdated = withContext(Dispatchers.IO) {
+                        MoonTvApi.getTodayUpdated()
+                    }
+                } catch (_: Exception) {}
+            }
 
             // 第一梯队：热门（并行）
             val hotJobs = listOf(
