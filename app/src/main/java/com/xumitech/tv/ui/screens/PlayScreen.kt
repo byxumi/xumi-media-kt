@@ -73,7 +73,6 @@ import com.xumitech.tv.model.SearchResult
 import com.xumitech.tv.model.VideoGroup
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -124,7 +123,7 @@ fun PlayScreen(
         // 分批并发（每批 4）
         for (batch in sources.chunked(4)) {
             val deferred = batch.map { src ->
-                coroutineScope.async {
+                async {
                     SpeedTester.testSpeed(
                         src.episodes.firstOrNull() ?: "",
                         refererOf(src),
