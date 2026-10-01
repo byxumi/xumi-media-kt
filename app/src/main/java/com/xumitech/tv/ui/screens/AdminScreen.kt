@@ -21,7 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Delete
@@ -115,7 +115,7 @@ fun AdminScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onClose) {
-                    Icon(Icons.Rounded.ArrowBack, contentDescription = "返回", tint = MaterialTheme.colorScheme.onBackground)
+                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "返回", tint = MaterialTheme.colorScheme.onBackground)
                 }
                 Text(
                     "管理后台",
@@ -172,7 +172,13 @@ fun AdminScreen(
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
                 error != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(error!!, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(error!!, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                        Spacer(Modifier.height(8.dp))
+                        TextButton(onClick = { scope.launch { reload() } }) {
+                            Text("点击重试", color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
                 }
                 adminJson != null -> when (tab) {
                     0 -> SiteTab(adminJson!!, onSaved = { scope.launch { reload() } })
@@ -186,6 +192,47 @@ fun AdminScreen(
 }
 
 // ---------------- 工具 ----------------
+
+/** 统一的状态提示文本：去掉 ✅/❌ 前缀，按成败着色。 */
+@Composable
+private fun StatusMsg(text: String?, modifier: Modifier = Modifier) {
+    if (text == null) return
+    val ok = !text.startsWith("❌")
+    Text(
+        text.removePrefix("✅").removePrefix("❌").trim(),
+        color = if (ok) Green else Danger,
+        fontSize = 12.sp,
+        modifier = modifier,
+    )
+}
+
+/** 危险操作确认对话框。 */
+@Composable
+private fun ConfirmDialog(
+    title: String,
+    message: String,
+    confirmLabel: String = "删除",
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { Text(message) },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onDismiss()
+                    onConfirm()
+                },
+            ) { Text(confirmLabel, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        },
+    )
+}
+
 private fun JsonObject.config() = get("Config") as? JsonObject ?: JsonObject(emptyMap())
 private fun JsonObject.site() = config().get("SiteConfig") as? JsonObject ?: JsonObject(emptyMap())
 private fun JsonObject.userCfg() = config().get("UserConfig") as? JsonObject ?: JsonObject(emptyMap())
@@ -271,7 +318,7 @@ private fun SiteTab(json: JsonObject, onSaved: () -> Unit) {
             )
             if (msg != null) {
                 Spacer(Modifier.height(8.dp))
-                Text(msg!!, color = if (msg!!.startsWith("✅")) Green else Danger, fontSize = 12.sp)
+                StatusMsg(msg)
             }
             Spacer(Modifier.height(12.dp))
             Box(
@@ -321,6 +368,7 @@ private fun SourceTab(json: JsonObject, onChanged: () -> Unit) {
     val sources = remember(json) { json.config().objList("SourceConfig") }
     val scope = rememberCoroutineScope()
     var showAdd by remember { mutableStateOf(false) }
+    var pendingDelete by remember { mutableStateOf<JsonObject?>(null) }
     var msg by remember { mutableStateOf<String?>(null) }
 
     Column {
@@ -336,7 +384,7 @@ private fun SourceTab(json: JsonObject, onChanged: () -> Unit) {
             }
         }
         if (msg != null) {
-            Text(msg!!, color = Green, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
+            StatusMsg(msg, Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
         }
         LazyColumn {
             items(sources, key = { it.s("key") }) { src ->
@@ -392,15 +440,7 @@ private fun SourceTab(json: JsonObject, onChanged: () -> Unit) {
                             modifier = Modifier.size(18.dp),
                         )
                     }
-                    IconButton(onClick = {
-                        scope.launch {
-                            try {
-                                MoonTvApi.adminSource("delete", key = src.s("key"))
-                                msg = "✅ 已删除 ${src.s("name")}"
-                                onChanged()
-                            } catch (e: Exception) { msg = "❌ ${e.message}" }
-                        }
-                    }) {
+                    IconButton(onClick = { pendingDelete = src }) {
                         Icon(Icons.Rounded.Delete, contentDescription = "删除", tint = Danger, modifier = Modifier.size(18.dp))
                     }
                 }
@@ -422,6 +462,22 @@ private fun SourceTab(json: JsonObject, onChanged: () -> Unit) {
                 }
             },
             onDismiss = { showAdd = false },
+        )
+    }
+    pendingDelete?.let { src ->
+        ConfirmDialog(
+            title = "删除数据源",
+            message = "确定删除「${src.s("name").ifEmpty { src.s("key") }}」？该操作不可恢复。",
+            onConfirm = {
+                scope.launch {
+                    try {
+                        MoonTvApi.adminSource("delete", key = src.s("key"))
+                        msg = "✅ 已删除 ${src.s("name")}"
+                        onChanged()
+                    } catch (e: Exception) { msg = "❌ ${e.message}" }
+                }
+            },
+            onDismiss = { pendingDelete = null },
         )
     }
 }
@@ -477,11 +533,12 @@ private fun UserTab(json: JsonObject, onChanged: () -> Unit) {
     val users = remember(json) { json.userCfg().objList("Users") }
     val scope = rememberCoroutineScope()
     var msg by remember { mutableStateOf<String?>(null) }
+    var pendingDelete by remember { mutableStateOf<JsonObject?>(null) }
 
     Column {
         AdminSectionTitle("用户列表(${users.size})")
         if (msg != null) {
-            Text(msg!!, color = Green, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
+            StatusMsg(msg, Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
         }
         LazyColumn {
             items(users, key = { it.s("username") }) { u ->
@@ -564,20 +621,29 @@ private fun UserTab(json: JsonObject, onChanged: () -> Unit) {
                                 }
                             }) { Icon(Icons.Rounded.Block, contentDescription = "封禁", tint = Danger, modifier = Modifier.size(18.dp)) }
                         }
-                        IconButton(onClick = {
-                            scope.launch {
-                                try {
-                                    MoonTvApi.adminUser("deleteUser", targetUsername = u.s("username"))
-                                    msg = "✅ 已删除用户 ${u.s("username")}"
-                                    onChanged()
-                                } catch (e: Exception) { msg = "❌ ${e.message}" }
-                            }
-                        }) { Icon(Icons.Rounded.Delete, contentDescription = "删除", tint = Danger, modifier = Modifier.size(18.dp)) }
+                        IconButton(onClick = { pendingDelete = u }) { Icon(Icons.Rounded.Delete, contentDescription = "删除", tint = Danger, modifier = Modifier.size(18.dp)) }
                     }
                 }
             }
             item { Spacer(Modifier.height(24.dp)) }
         }
+    }
+
+    pendingDelete?.let { u ->
+        ConfirmDialog(
+            title = "删除用户",
+            message = "确定删除用户「${u.s("username")}」？该操作不可恢复。",
+            onConfirm = {
+                scope.launch {
+                    try {
+                        MoonTvApi.adminUser("deleteUser", targetUsername = u.s("username"))
+                        msg = "✅ 已删除用户 ${u.s("username")}"
+                        onChanged()
+                    } catch (e: Exception) { msg = "❌ ${e.message}" }
+                }
+            },
+            onDismiss = { pendingDelete = null },
+        )
     }
 }
 
@@ -587,6 +653,7 @@ private fun CategoryTab(json: JsonObject, onChanged: () -> Unit) {
     val cats = remember(json) { json.config().objList("CustomCategories") }
     val scope = rememberCoroutineScope()
     var showAdd by remember { mutableStateOf(false) }
+    var pendingDelete by remember { mutableStateOf<JsonObject?>(null) }
     var msg by remember { mutableStateOf<String?>(null) }
 
     Column {
@@ -600,7 +667,7 @@ private fun CategoryTab(json: JsonObject, onChanged: () -> Unit) {
             TextButton(onClick = { showAdd = true }) { Text("+ 添加", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold) }
         }
         if (msg != null) {
-            Text(msg!!, color = Green, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
+            StatusMsg(msg, Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
         }
         LazyColumn {
             items(cats, key = { it.s("query") + it.s("name") }) { c ->
@@ -633,15 +700,7 @@ private fun CategoryTab(json: JsonObject, onChanged: () -> Unit) {
                             maxLines = 1,
                         )
                     }
-                    IconButton(onClick = {
-                        scope.launch {
-                            try {
-                                MoonTvApi.adminCategory("delete", name = c.s("name"))
-                                msg = "✅ 已删除 ${c.s("name")}"
-                                onChanged()
-                            } catch (e: Exception) { msg = "❌ ${e.message}" }
-                        }
-                    }) { Icon(Icons.Rounded.Delete, contentDescription = "删除", tint = Danger, modifier = Modifier.size(18.dp)) }
+                    IconButton(onClick = { pendingDelete = c }) { Icon(Icons.Rounded.Delete, contentDescription = "删除", tint = Danger, modifier = Modifier.size(18.dp)) }
                 }
             }
             item { Spacer(Modifier.height(24.dp)) }
@@ -708,6 +767,23 @@ private fun CategoryTab(json: JsonObject, onChanged: () -> Unit) {
             },
             confirmButton = {},
             dismissButton = { TextButton(onClick = { showAdd = false }) { Text("取消") } },
+        )
+    }
+
+    pendingDelete?.let { c ->
+        ConfirmDialog(
+            title = "删除分类",
+            message = "确定删除分类「${c.s("name").ifEmpty { "未命名" }}」？该操作不可恢复。",
+            onConfirm = {
+                scope.launch {
+                    try {
+                        MoonTvApi.adminCategory("delete", name = c.s("name"))
+                        msg = "✅ 已删除 ${c.s("name")}"
+                        onChanged()
+                    } catch (e: Exception) { msg = "❌ ${e.message}" }
+                }
+            },
+            onDismiss = { pendingDelete = null },
         )
     }
 }

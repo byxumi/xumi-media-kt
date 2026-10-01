@@ -8,9 +8,11 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Refresh
@@ -37,6 +40,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.xumitech.tv.ui.theme.GlassDeep
+import com.xumitech.tv.ui.theme.GlassMid
 
 /** 区块标题（标题 + 可选副标题）。 */
 @Composable
@@ -46,21 +51,20 @@ fun SectionHeader(
     subtitle: String? = null,
     action: (@Composable () -> Unit)? = null,
 ) {
-    androidx.compose.foundation.layout.Row(
+    Row(
         modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = title,
-            fontSize = 17.sp,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
         if (subtitle != null) {
             Spacer(Modifier.width(6.dp))
             Text(
                 text = subtitle,
-                fontSize = 11.sp,
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
             )
         }
@@ -82,9 +86,9 @@ fun GlassCard(
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        if (isDark) Color(0xFF2A2D3A).copy(alpha = 0.55f)
+                        if (isDark) GlassMid.copy(alpha = 0.55f)
                         else Color(0xFFFFFFFF).copy(alpha = 0.65f),
-                        if (isDark) Color(0xFF14161F).copy(alpha = 0.45f)
+                        if (isDark) GlassDeep.copy(alpha = 0.45f)
                         else Color(0xFFF7F8FC).copy(alpha = 0.55f),
                     ),
                 ),
@@ -100,7 +104,7 @@ fun GlassCard(
 fun ShimmerBox(
     modifier: Modifier = Modifier,
     cornerRadius: Dp = 10.dp,
-    baseColor: Color = Color(0xFF2A2D3A),
+    baseColor: Color = GlassMid,
     highlightColor: Color = Color(0xFF3A3E4E),
 ) {
     val transition = rememberInfiniteTransition(label = "shimmer")
@@ -131,9 +135,9 @@ fun HomeSkeleton() {
     Column(Modifier.fillMaxWidth().padding(top = 12.dp)) {
         ShimmerBox(Modifier.padding(horizontal = 16.dp).width(120.dp).height(20.dp), 8.dp)
         Spacer(Modifier.height(10.dp))
-        androidx.compose.foundation.layout.Row(
+        Row(
             Modifier.padding(horizontal = 16.dp),
-            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             repeat(4) {
                 ShimmerBox(Modifier.width(112.dp).height(168.dp), 10.dp)
@@ -142,25 +146,77 @@ fun HomeSkeleton() {
     }
 }
 
-/** 空状态。 */
+/** 通用列表骨架（标题条 + N 行占位, 供收藏/历史/榜单页加载态）。 */
+@Composable
+fun ListSkeleton(rows: Int = 4) {
+    Column(Modifier.fillMaxWidth().padding(top = 12.dp)) {
+        repeat(rows) {
+            ShimmerBox(
+                Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    .fillMaxWidth()
+                    .height(64.dp),
+                12.dp,
+            )
+        }
+    }
+}
+
+/** 网格骨架（N 列海报占位, 供收藏/榜单页加载态）。 */
+@Composable
+fun GridSkeleton(columns: Int = 3, rows: Int = 4) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp)) {
+        repeat(rows) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                repeat(columns) {
+                    ShimmerBox(
+                        Modifier.weight(1f).aspectRatio(2f / 3f),
+                        12.dp,
+                    )
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+        }
+    }
+}
+
+/** 空状态（图标 + 标题 + 可选引导 + 可选重试）。 */
 @Composable
 fun EmptyState(
     text: String,
     modifier: Modifier = Modifier,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    hint: String? = null,
     onRetry: (() -> Unit)? = null,
 ) {
     Column(
         modifier.fillMaxWidth().padding(vertical = 48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        if (icon != null) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
+                modifier = Modifier.size(44.dp),
+            )
+            Spacer(Modifier.height(10.dp))
+        }
         Text(
             text = text,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
             fontSize = 14.sp,
         )
+        if (hint != null) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = hint,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                fontSize = 12.sp,
+            )
+        }
         if (onRetry != null) {
             Spacer(Modifier.height(10.dp))
-            androidx.compose.foundation.layout.Row(
+            Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .clickable { onRetry() }

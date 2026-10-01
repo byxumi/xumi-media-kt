@@ -1,6 +1,5 @@
 package com.xumitech.tv.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,11 +17,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,24 +42,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xumitech.tv.AppState
 import com.xumitech.tv.data.MoonTvApi
 import com.xumitech.tv.model.DoubanItem
-import com.xumitech.tv.model.SearchResult
 import com.xumitech.tv.model.VideoGroup
 import com.xumitech.tv.ui.components.EmptyState
 import com.xumitech.tv.ui.components.PosterTile
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-
-/** 搜索结果条目（用于水平聚合显示）。 */
-private data class SearchHit(
-    val group: VideoGroup,
-    val totalVideos: Int,
-)
 
 /**
  * 搜索页：输入 + 联想建议 + 历史 + 结果聚合。
@@ -77,6 +73,7 @@ fun SearchScreen(
     val history = appState.searchHistory
     var searched by remember { mutableStateOf(false) }
     var searchedQuery by remember { mutableStateOf("") }
+    val keyboard = LocalSoftwareKeyboardController.current
 
     // 输入防抖联想（修改关键词后重新出联想；搜索完成且关键词未变时不上联想）
     LaunchedEffect(query) {
@@ -90,6 +87,7 @@ fun SearchScreen(
 
     fun runSearch(q: String) {
         searchedQuery = q
+        keyboard?.hide()
         doSearch(appState, q) {
             searching = it.first
             groups = it.second
@@ -125,6 +123,12 @@ fun SearchScreen(
                         }
                     }
                 },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(
+                    onSearch = {
+                        if (query.isNotBlank()) runSearch(query)
+                    },
+                ),
                 shape = RoundedCornerShape(50),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -157,6 +161,7 @@ fun SearchScreen(
 
             error != null -> EmptyState(
                 text = error!!,
+                icon = Icons.Rounded.SearchOff,
                 onRetry = {
                     if (query.isNotBlank()) runSearch(query)
                 },
@@ -164,36 +169,9 @@ fun SearchScreen(
 
             // 联想优先：搜索后修改关键词时展示新联想，而不是旧的搜索结果
             query.isNotBlank() && suggestions.isNotEmpty() && query != searchedQuery -> {
-                LazyColumn(Modifier.fillMaxSize()) {
-                    item {
-                        Text(
-                            "搜索建议",
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        )
-                    }
-                    items(suggestions) { s ->
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    query = s
-                                    runSearch(s)
-                                }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                Icons.Rounded.Search,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                                modifier = Modifier.size(18.dp),
-                            )
-                            Spacer(Modifier.width(10.dp))
-                            Text(s, fontSize = 14.sp)
-                        }
-                    }
+                SuggestionList(suggestions) { s ->
+                    query = s
+                    runSearch(s)
                 }
             }
 
@@ -206,7 +184,7 @@ fun SearchScreen(
                     item {
                         Text(
                             "找到 ${groups.size} 部影片",
-                            fontSize = 13.sp,
+                            style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         )
@@ -219,44 +197,21 @@ fun SearchScreen(
             }
 
             // 联想建议（初始输入阶段：此时无搜索结果）
-            query.isNotBlank() && suggestions.isNotEmpty() && groups.isEmpty() -> {
-                LazyColumn(Modifier.fillMaxSize()) {
-                    item {
-                        Text(
-                            "搜索建议",
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        )
-                    }
-                    items(suggestions) { s ->
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    query = s
-                                    runSearch(s)
-                                }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                Icons.Rounded.Search,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                                modifier = Modifier.size(18.dp),
-                            )
-                            Spacer(Modifier.width(10.dp))
-                            Text(s, fontSize = 14.sp)
-                        }
-                    }
+            query.isNotBlank() && suggestions.isNotEmpty() -> {
+                SuggestionList(suggestions) { s ->
+                    query = s
+                    runSearch(s)
                 }
             }
 
             else -> {
                 // 历史
                 if (history.isEmpty()) {
-                    EmptyState("搜索你想看的影视、剧集…")
+                    EmptyState(
+                        "搜索你想看的影视、剧集…",
+                        icon = Icons.Rounded.Search,
+                        hint = "输入片名，聚合全网资源",
+                    )
                 } else {
                     LazyColumn(Modifier.fillMaxSize()) {
                         item {
@@ -268,7 +223,7 @@ fun SearchScreen(
                             ) {
                                 Text(
                                     "搜索历史",
-                                    fontSize = 13.sp,
+                                    style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                                 )
@@ -306,6 +261,42 @@ fun SearchScreen(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+/** 联想列表（两处分支共用）。 */
+@Composable
+private fun SuggestionList(
+    suggestions: List<String>,
+    onPick: (String) -> Unit,
+) {
+    LazyColumn(Modifier.fillMaxSize()) {
+        item {
+            Text(
+                "搜索建议",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+        }
+        items(suggestions) { s ->
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { onPick(s) }
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    Icons.Rounded.Search,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(s, fontSize = 14.sp)
             }
         }
     }
@@ -353,14 +344,13 @@ private fun SearchGroupRow(
         ) {
             Text(
                 group.title,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleSmall,
                 maxLines = 1,
             )
             Spacer(Modifier.width(8.dp))
             Text(
                 "${group.sources.size} 个源",
-                fontSize = 11.sp,
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
             )
             Spacer(Modifier.weight(1f))
@@ -377,59 +367,33 @@ private fun SearchGroupRow(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(group.sources) { src ->
-                Column(
-                    Modifier
-                        .width(96.dp)
-                        .clickable {
-                            onOpenItem(
-                                DoubanItem(
-                                    id = src.id,
-                                    title = group.title,
-                                    poster = group.poster,
-                                    source = src.source,
-                                    sourceName = src.sourceName,
-                                    year = group.year,
-                                ),
-                            )
-                        },
-                ) {
-                    Box(
-                        Modifier
-                            .width(96.dp)
-                            .height(144.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
-                    ) {
-                        coil.compose.AsyncImage(
-                            model = group.poster,
-                            contentDescription = null,
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize(),
+                PosterTile(
+                    title = group.title,
+                    poster = group.poster,
+                    onClick = {
+                        onOpenItem(
+                            DoubanItem(
+                                id = src.id,
+                                title = group.title,
+                                poster = group.poster,
+                                source = src.source,
+                                sourceName = src.sourceName,
+                                year = group.year,
+                            ),
                         )
-                        if (src.episodes.size > 1) {
-                            Box(
-                                Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(4.dp)
-                                    .background(Color(0xCC000000), RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 5.dp, vertical = 1.dp),
-                            ) {
-                                Text(
-                                    "${src.episodes.size}集",
-                                    color = Color.White,
-                                    fontSize = 10.sp,
-                                )
-                            }
+                    },
+                    width = 96.dp,
+                    badge = if (src.episodes.size > 1) {
+                        {
+                            Text(
+                                "${src.episodes.size}集",
+                                color = Color.White,
+                                fontSize = 10.sp,
+                            )
                         }
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        src.sourceName,
-                        maxLines = 1,
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    )
-                }
+                    } else null,
+                    subtitle = src.sourceName,
+                )
             }
         }
     }

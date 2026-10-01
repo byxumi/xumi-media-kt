@@ -54,8 +54,10 @@ class AppState(private val store: AuthStore) : ViewModel() {
 
     // 收藏 / 播放记录 / 追更 / 搜索历史
     var favorites by mutableStateOf<Map<String, Favorite>>(emptyMap())
+    var favLoading by mutableStateOf(false)
         private set
     var playRecords by mutableStateOf<Map<String, PlayRecord>>(emptyMap())
+    var historyLoading by mutableStateOf(false)
         private set
     var followings by mutableStateOf<Map<String, Following>>(emptyMap())
         private set
@@ -275,9 +277,11 @@ class AppState(private val store: AuthStore) : ViewModel() {
 
     fun loadFavorites() {
         viewModelScope.launch {
+            favLoading = true
             try {
                 favorites = MoonTvApi.getFavorites()
             } catch (_: Exception) {}
+            favLoading = false
         }
     }
 
@@ -300,9 +304,11 @@ class AppState(private val store: AuthStore) : ViewModel() {
 
     fun loadPlayRecords() {
         viewModelScope.launch {
+            historyLoading = true
             try {
                 playRecords = MoonTvApi.getPlayRecords()
             } catch (_: Exception) {}
+            historyLoading = false
         }
     }
 

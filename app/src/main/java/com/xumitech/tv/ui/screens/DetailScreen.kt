@@ -1,10 +1,13 @@
 package com.xumitech.tv.ui.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,11 +28,12 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.SearchOff
+import androidx.compose.material.icons.rounded.VideoLibrary
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -57,14 +61,18 @@ import com.xumitech.tv.model.SearchResult
 import com.xumitech.tv.model.VideoGroup
 import com.xumitech.tv.ui.components.CenterLoading
 import com.xumitech.tv.ui.components.EmptyState
+import com.xumitech.tv.ui.components.GradientProgressBar
+import com.xumitech.tv.ui.theme.ScrimHeavy
+import com.xumitech.tv.ui.theme.ScrimHeroBottom
+import com.xumitech.tv.ui.theme.ScrimHeroTop
 
 /**
  * 详情页（播放前页面）：
  * 1. 通过「标题聚合」拉取该影片全部源（VideoGroup.group 去重）
- * 2. 头部立即渲染（标题/海报/简介）
- * 3. 源列表 + 选集 + 追更/收藏
- * 4. 自动选中历史记录所在源（继续播放）
- * 5. 「立即播放/继续播放」按钮 → 进入播放器
+ * 2. 头部立即渲染（标题/年份/类型 + 海报）
+ * 3. 播放按钮 + 收藏/追更 + 进度条
+ * 4. 简介（可展开）、源列表、选集（6 列网格）
+ * 5. 自动选中历史记录所在源（继续播放）
  */
 @Composable
 fun DetailScreen(
@@ -77,12 +85,13 @@ fun DetailScreen(
     var group by remember { mutableStateOf<VideoGroup?>(null) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
+    var reloadKey by remember { mutableIntStateOf(0) }
     var selectedSource by remember { mutableIntStateOf(0) }
     var selectedEpisode by remember { mutableIntStateOf(initialEpisode) }
     var playRequest by remember { mutableStateOf<PlayRequest?>(null) }
 
-    // 加载：标题聚合所有源
-    LaunchedEffect(item.id, item.title) {
+    // 加载：标题聚合所有源（reloadKey 变化 = 用户点击重试）
+    LaunchedEffect(item.id, item.title, reloadKey) {
         appState.loadFavorites()
         appState.loadFollowings()
         loading = true
@@ -131,8 +140,16 @@ fun DetailScreen(
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         when {
             loading -> CenterLoading()
-            error != null -> EmptyState(error!!, onRetry = { onClose() })
-            group == null -> EmptyState("无可用数据", onRetry = { onClose() })
+            error != null -> EmptyState(
+                error!!,
+                icon = Icons.Rounded.SearchOff,
+                onRetry = { reloadKey++ },
+            )
+            group == null -> EmptyState(
+                "无可用数据",
+                icon = Icons.Rounded.VideoLibrary,
+                onRetry = { reloadKey++ },
+            )
             else -> {
                 val g = group!!
                 DetailContent(
@@ -221,10 +238,10 @@ private fun DetailContent(
     val isFav = appState.favorites.containsKey(current.key)
     val isFollowing = appState.followings.containsKey(current.key)
 
-    // 已看集数（学网页端追更 watched_episodes：取本片播放记录里看过的最大集数）
-    val watchedCount = group.sources.maxOfOrNull { src ->
+    // 已看集数（学网页端追更 watched_episodes：取本片播放记录里看过的最大集数，截断到当前源集数）
+    val watchedCount = (group.sources.maxOfOrNull { src ->
         appState.playRecords[src.key]?.index ?: 0
-    } ?: 0
+    } ?: 0).coerceAtMost(current.episodes.size)
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -244,7 +261,7 @@ private fun DetailContent(
                         .fillMaxSize()
                         .background(
                             Brush.verticalGradient(
-                                listOf(Color(0x55000000), Color(0xE60B0C12)),
+                                listOf(ScrimHeroTop, ScrimHeroBottom),
                             ),
                         ),
                 )
@@ -253,7 +270,10 @@ private fun DetailContent(
                     onClick = onClose,
                     modifier = Modifier
                         .padding(8.dp)
-                        .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(50)),
+                        .background(
+                            ScrimHeavy.copy(alpha = 0.4f),
+                            RoundedCornerShape(50),
+                        ),
                 ) {
                     Icon(
                         Icons.Rounded.ArrowBack,
@@ -265,28 +285,38 @@ private fun DetailContent(
                 Text(
                     group.title,
                     color = Color.White,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleLarge,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .padding(16.dp),
                 )
-                // 年份/类型角标
+                // 年份/类型角标（信息分层）
                 Row(
                     Modifier
                         .align(Alignment.BottomEnd)
                         .padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    if (group.typeName.isNotEmpty()) {
+                        Text(
+                            group.typeName,
+                            color = Color.White.copy(alpha = 0.85f),
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier
+                                .background(ScrimHeroTop, MaterialTheme.shapes.extraSmall)
+                                .padding(horizontal = 8.dp, vertical = 3.dp),
+                        )
+                    }
                     if (group.year.isNotEmpty()) {
                         Text(
                             group.year,
-                            color = Color.White.copy(alpha = 0.8f),
-                            fontSize = 12.sp,
+                            color = Color.White.copy(alpha = 0.85f),
+                            style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier
-                                .background(Color(0x55000000), RoundedCornerShape(6.dp))
+                                .background(ScrimHeroTop, MaterialTheme.shapes.extraSmall)
                                 .padding(horizontal = 8.dp, vertical = 3.dp),
                         )
                     }
@@ -305,7 +335,7 @@ private fun DetailContent(
                     modifier = Modifier
                         .weight(1f)
                         .height(48.dp),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = MaterialTheme.shapes.medium,
                 ) {
                     Icon(
                         Icons.Rounded.PlayArrow,
@@ -343,8 +373,9 @@ private fun DetailContent(
                     modifier = Modifier
                         .size(44.dp)
                         .background(
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-                            RoundedCornerShape(14.dp),
+                            if (isFav) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                            MaterialTheme.shapes.medium,
                         ),
                 ) {
                     Icon(
@@ -375,8 +406,9 @@ private fun DetailContent(
                     modifier = Modifier
                         .size(44.dp)
                         .background(
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-                            RoundedCornerShape(14.dp),
+                            if (isFollowing) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                            MaterialTheme.shapes.medium,
                         ),
                 ) {
                     Icon(
@@ -397,58 +429,50 @@ private fun DetailContent(
                     Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(
-                        Modifier
-                            .weight(1f)
-                            .height(5.dp)
-                            .background(
-                                MaterialTheme.colorScheme.surfaceVariant,
-                                RoundedCornerShape(3.dp),
-                            ),
-                    ) {
-                        Box(
-                            Modifier
-                                .fillMaxWidth(progress)
-                                .height(5.dp)
-                                .background(
-                                    Brush.horizontalGradient(
-                                        listOf(
-                                            MaterialTheme.colorScheme.primary,
-                                            Color(0xFF0EA5E9),
-                                        ),
-                                    ),
-                                    RoundedCornerShape(3.dp),
-                                ),
-                        )
-                    }
+                    GradientProgressBar(
+                        progress = progress,
+                        modifier = Modifier.weight(1f),
+                        height = 5.dp,
+                    )
                     Spacer(Modifier.width(8.dp))
                     Text(
                         "已播放 ${(record.playTime / 60)}分",
-                        fontSize = 11.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                     )
                 }
             }
         }
 
-        // 简介
+        // 简介（可展开）
         if (group.desc.isNotEmpty()) {
             item {
-                Text(
-                    "简介",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
-            }
-            item {
-                Text(
-                    group.desc,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
-                    fontSize = 13.sp,
-                    lineHeight = 20.sp,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
-                )
+                var descExpanded by remember { mutableStateOf(false) }
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Text(
+                        "简介",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(vertical = 2.dp),
+                    )
+                    Text(
+                        group.desc,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+                        lineHeight = 20.sp,
+                        maxLines = if (descExpanded) Int.MAX_VALUE else 3,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (group.desc.length > 80 && !descExpanded) {
+                        Text(
+                            "展开",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .clickable { descExpanded = true }
+                                .padding(top = 4.dp),
+                        )
+                    }
+                }
             }
         }
 
@@ -457,8 +481,7 @@ private fun DetailContent(
             item {
                 Text(
                     "播放源（${group.sources.size}）",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                 )
             }
@@ -468,69 +491,86 @@ private fun DetailContent(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     items(group.sources.size) { i ->
-                        val src = group.sources[i]
-                        val selected = i == selectedSource
-                        Box(
-                            Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(
-                                    if (selected) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-                                )
-                                .clickable { onSourceSelect(i) }
-                                .padding(horizontal = 14.dp, vertical = 8.dp),
-                        ) {
-                            Text(
-                                src.sourceName,
-                                fontSize = 12.sp,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (selected) Color.White
-                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                maxLines = 1,
-                            )
-                        }
+                        SelectableChip(
+                            label = group.sources[i].sourceName,
+                            selected = i == selectedSource,
+                            onClick = { onSourceSelect(i) },
+                        )
                     }
                 }
             }
         }
 
-        // 选集
+        // 选集（6 列网格）
         if (current.episodes.isNotEmpty()) {
             item {
                 Text(
                     "选集（${current.episodes.size}）",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                 )
             }
             item {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    items(current.episodes.size) { i ->
-                        val selected = i == selectedEpisode
-                        Box(
-                            Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(
-                                    if (selected) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-                                )
-                                .clickable { onEpisodeSelect(i) }
-                                .padding(horizontal = 14.dp, vertical = 8.dp),
-                        ) {
-                            Text(
-                                current.episodeTitle(i),
-                                fontSize = 12.sp,
-                                color = if (selected) Color.White
-                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                            )
-                        }
-                    }
-                }
+                EpisodeGrid(
+                    labels = current.episodes.mapIndexed { i, _ -> current.episodeTitle(i) },
+                    selectedIndex = selectedEpisode,
+                    onSelect = onEpisodeSelect,
+                )
             }
+        }
+    }
+}
+
+/** 单个可选胶囊（源/选集共用，圆角统一 extraSmall=10dp）。 */
+@Composable
+private fun SelectableChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Box(
+        Modifier
+            .clip(MaterialTheme.shapes.extraSmall)
+            .background(
+                if (selected) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            color = if (selected) Color.White
+            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+            maxLines = 1,
+        )
+    }
+}
+
+/** 选集网格：每行最多 6 个胶囊。 */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun EpisodeGrid(
+    labels: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+) {
+    FlowRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        maxItemsInEachRow = 6,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        labels.forEachIndexed { i, label ->
+            SelectableChip(
+                label = label,
+                selected = i == selectedIndex,
+                onClick = { onSelect(i) },
+            )
         }
     }
 }

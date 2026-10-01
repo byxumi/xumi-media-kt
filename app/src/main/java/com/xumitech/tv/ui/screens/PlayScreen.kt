@@ -35,7 +35,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Fullscreen
@@ -88,6 +88,11 @@ import com.xumitech.tv.model.Favorite
 import com.xumitech.tv.model.PlayRecord
 import com.xumitech.tv.model.SearchResult
 import com.xumitech.tv.model.VideoGroup
+import com.xumitech.tv.ui.theme.GlassDeep
+import com.xumitech.tv.ui.theme.GlassMid
+import com.xumitech.tv.ui.theme.Green
+import com.xumitech.tv.ui.theme.ScrimHeavy
+import com.xumitech.tv.ui.theme.SkyBlue
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
@@ -264,7 +269,7 @@ fun PlayScreen(
             isPlaying = true
             statusText = null
         } catch (_: Exception) {
-            statusText = "播放失败：$url"
+            statusText = "播放失败，请重试或切换其他源"
         }
     }
 
@@ -377,7 +382,7 @@ fun PlayScreen(
                     .statusBarsPadding()
                     .background(
                         Brush.verticalGradient(
-                            listOf(Color(0xCC000000), Color.Transparent),
+                            listOf(ScrimHeavy, Color.Transparent),
                         ),
                     )
                     .padding(horizontal = 4.dp, vertical = 2.dp),
@@ -388,7 +393,7 @@ fun PlayScreen(
                 ) {
                     IconButton(onClick = { if (isFullscreen) exitFullscreen() else onClose() }) {
                         Icon(
-                            Icons.Rounded.ArrowBack,
+                            Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = if (isFullscreen) "退出全屏" else "返回",
                             tint = Color.White,
                         )
@@ -461,7 +466,7 @@ fun PlayScreen(
             ) {
                 Column(
                     Modifier
-                        .background(Color(0xE614161F), RoundedCornerShape(16.dp))
+                        .background(GlassMid.copy(alpha = 0.9f), RoundedCornerShape(16.dp))
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                 ) {
                     Text(
@@ -510,7 +515,7 @@ fun PlayScreen(
                         .align(Alignment.BottomCenter)
                         .background(
                             Brush.verticalGradient(
-                                listOf(Color.Transparent, Color(0xCC000000)),
+                                listOf(Color.Transparent, ScrimHeavy),
                             ),
                         )
                         .padding(horizontal = 16.dp, vertical = 10.dp),
@@ -558,7 +563,7 @@ fun PlayScreen(
                     // 返回
                     IconButton(onClick = onClose) {
                         Icon(
-                            Icons.Rounded.ArrowBack,
+                            Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = "返回",
                             tint = Color.White,
                         )
@@ -581,7 +586,7 @@ fun PlayScreen(
                                     Brush.linearGradient(
                                         listOf(
                                             MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
-                                            Color(0xFF0EA5E9).copy(alpha = 0.75f),
+                                            SkyBlue.copy(alpha = 0.75f),
                                         ),
                                     ),
                                     RoundedCornerShape(12.dp),
@@ -637,7 +642,7 @@ fun PlayScreen(
                             if (r.ok) {
                                 Text(
                                     "${r.quality} ${r.speedText}",
-                                    color = Color(0xFF2ED573),
+                                    color = Green,
                                     fontSize = 11.sp,
                                 )
                             } else {
@@ -731,7 +736,7 @@ private fun SpeedTestOverlay(
     Column(
         Modifier
             .padding(24.dp)
-            .background(Color(0xFF14161F).copy(alpha = 0.92f), RoundedCornerShape(26.dp))
+            .background(GlassDeep.copy(alpha = 0.92f), RoundedCornerShape(26.dp))
             .padding(28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -769,7 +774,7 @@ private fun SpeedTestOverlay(
                         Brush.horizontalGradient(
                             listOf(
                                 MaterialTheme.colorScheme.primary,
-                                Color(0xFF0EA5E9),
+                                SkyBlue,
                             ),
                         ),
                         RoundedCornerShape(2.dp),

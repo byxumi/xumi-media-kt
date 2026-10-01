@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,6 +21,8 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.MovieFilter
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -46,6 +47,8 @@ import com.xumitech.tv.AppState
 import com.xumitech.tv.data.MoonTvApi
 import com.xumitech.tv.model.DoubanItem
 import com.xumitech.tv.ui.components.EmptyState
+import com.xumitech.tv.ui.components.GridSkeleton
+import com.xumitech.tv.ui.components.PosterTile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -153,12 +156,11 @@ fun DiscoverScreen(
             }
             Text(
                 "分类 · 榜单",
-                fontSize = 19.sp,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium,
             )
         }
 
-        // 类型 Tab
+        // 类型 Tab（统一胶囊 50）
         LazyRow(
             contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -187,7 +189,7 @@ fun DiscoverScreen(
             }
         }
 
-        // 分类 chips
+        // 分类 chips（统一圆角 10）
         LazyRow(
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -197,7 +199,7 @@ fun DiscoverScreen(
                 val selected = i == chipIdx
                 Box(
                     Modifier
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(10.dp))
                         .background(
                             if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                             else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -218,8 +220,10 @@ fun DiscoverScreen(
         when {
             error != null && items.isEmpty() -> EmptyState(
                 error!!,
+                icon = Icons.Rounded.MovieFilter,
                 onRetry = { load(true, 0) },
             )
+            loading && items.isEmpty() -> GridSkeleton()
             else -> LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
                 state = gridState,
@@ -229,8 +233,11 @@ fun DiscoverScreen(
                 modifier = Modifier.fillMaxSize(),
             ) {
                 items(items, key = { it.id + it.source + it.title }) { item ->
-                    // 复用 PosterTile 风格但网格化
-                    GridPoster(item, onClick = { onOpenItem(item) })
+                    PosterTile(
+                        item = item,
+                        onClick = { onOpenItem(item) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
                 // 加载更多
                 if (loading) {
@@ -241,7 +248,7 @@ fun DiscoverScreen(
                                 .height(48.dp),
                             contentAlignment = Alignment.Center,
                         ) {
-                            androidx.compose.material3.CircularProgressIndicator(
+                            CircularProgressIndicator(
                                 color = MaterialTheme.colorScheme.primary,
                                 strokeWidth = 2.dp,
                                 modifier = Modifier.height(20.dp).width(20.dp),
@@ -249,57 +256,22 @@ fun DiscoverScreen(
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun GridPoster(
-    item: DoubanItem,
-    onClick: () -> Unit,
-) {
-    Column(
-        Modifier
-            .clickable(onClick = onClick),
-    ) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .aspectRatio(2f / 3f)
-                .clip(RoundedCornerShape(12.dp)),
-        ) {
-            coil.compose.AsyncImage(
-                model = item.poster,
-                contentDescription = item.title,
-                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-            if (item.rate.isNotEmpty() && item.rate != "0") {
-                Box(
-                    Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(4.dp)
-                        .background(Color(0xCC000000), RoundedCornerShape(50))
-                        .padding(horizontal = 5.dp, vertical = 1.dp),
-                ) {
-                    Text(
-                        item.rate,
-                        color = Color(0xFFFFC53D),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
+                // 分页失败提示
+                if (error != null && items.isNotEmpty()) {
+                    item {
+                        Text(
+                            "加载失败，点击重试",
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            fontSize = 12.sp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { load(false, page) }
+                                .padding(vertical = 12.dp),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        )
+                    }
                 }
             }
         }
-        Spacer(Modifier.height(5.dp))
-        Text(
-            text = item.title,
-            maxLines = 1,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurface,
-            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-        )
     }
 }

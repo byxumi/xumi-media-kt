@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,10 +18,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Explore
 import androidx.compose.material.icons.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -36,22 +41,30 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.xumitech.tv.AppState
 import com.xumitech.tv.HomeSection
 import com.xumitech.tv.model.DoubanItem
+import com.xumitech.tv.model.PlayRecord
 import com.xumitech.tv.ui.components.ContinueWatchingCard
 import com.xumitech.tv.ui.components.EmptyState
 import com.xumitech.tv.ui.components.FollowingCard
+import com.xumitech.tv.ui.components.GradientProgressBar
 import com.xumitech.tv.ui.components.HomeSkeleton
 import com.xumitech.tv.ui.components.PosterTile
 import com.xumitech.tv.ui.components.SectionHeader
 import com.xumitech.tv.ui.components.ShimmerBox
 import com.xumitech.tv.ui.components.TodayUpdatedCard
+import com.xumitech.tv.ui.theme.ScrimHeavy
+import com.xumitech.tv.ui.theme.ScrimHeroBottom
+import com.xumitech.tv.ui.theme.ScrimHeroTop
 import kotlinx.coroutines.launch
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
@@ -71,6 +84,14 @@ fun HomeScreen(
     val todayItems = today?.items?.take(12) ?: emptyList()
     var refreshing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+
+    // Hero：取第一个 section 的前 3 部（横滑大卡轮播）
+    val heroItems = sections.firstOrNull()?.items?.take(3) ?: emptyList()
+    val restSections = if (heroItems.isNotEmpty()) {
+        sections.mapIndexed { i, s ->
+            if (i == 0) s.copy(items = s.items.drop(3)) else s
+        }.filter { it.items.isNotEmpty() }
+    } else sections
 
     fun refreshHome() {
         scope.launch {
@@ -100,21 +121,24 @@ fun HomeScreen(
             HomeHeader(appState, onSearch, onOpenDiscover)
         }
 
-        // 继续观看
+        // Hero 大卡（布局族 1：16:9 横滑大卡）
+        if (heroItems.isNotEmpty()) {
+            item {
+                HeroRow(heroItems, onOpenItem)
+            }
+        }
+
+        // 继续观看（布局族 2：列表行 + 进度条）
         if (records.isNotEmpty()) {
             item {
                 SectionHeader("继续观看")
             }
             item {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    items(records, key = { it.title + it.sourceName + it.index }) { r ->
-                        ContinueWatchingCard(
+                Column {
+                    records.forEach { r ->
+                        ContinueRow(
                             record = r,
                             onClick = {
-                                // 历史续播：扁平化条目，进入详情页自动恢复
                                 onOpenItem(
                                     DoubanItem(
                                         id = "",
@@ -132,15 +156,17 @@ fun HomeScreen(
             }
         }
 
-        // 我的追更（学网页端首页追更模块）
+        // 我的追更（布局族 3：2 列网格）
         if (followings.isNotEmpty()) {
             item {
                 SectionHeader("我的追更")
             }
             item {
-                LazyRow(
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(followings, key = { it.first }) { (key, f) ->
                         FollowingCard(
@@ -160,21 +186,24 @@ fun HomeScreen(
                                     ),
                                 )
                             },
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                 }
             }
         }
 
-        // 今日新更
+        // 今日新更（布局族 4：2 列网格）
         if (todayItems.isNotEmpty()) {
             item {
                 SectionHeader("今日新更", subtitle = today?.date?.takeIf { it.isNotBlank() })
             }
             item {
-                LazyRow(
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(todayItems, key = { it.source + it.id + it.title }) { it ->
                         TodayUpdatedCard(
@@ -194,13 +223,14 @@ fun HomeScreen(
                                     ),
                                 )
                             },
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                 }
             }
         }
 
-        if (sections.isEmpty()) {
+        if (restSections.isEmpty()) {
             item {
                 if (loading) {
                     Column {
@@ -214,12 +244,174 @@ fun HomeScreen(
                 }
             }
         } else {
-            items(sections.size) { i ->
-                val section = sections[i]
+            items(restSections.size) { i ->
+                val section = restSections[i]
                 SectionRow(section.title, section.items, onOpenItem)
             }
         }
         }
+    }
+}
+
+/** Hero 大卡：16:9 大图 + 渐变遮罩 + 标题 + 播放按钮。 */
+@Composable
+private fun HeroRow(
+    items: List<DoubanItem>,
+    onOpenItem: (DoubanItem) -> Unit,
+) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        items(items, key = { it.id + it.source }) { item ->
+            Box(
+                Modifier
+                    .width(320.dp)
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable { onOpenItem(item) },
+            ) {
+                AsyncImage(
+                    model = item.poster,
+                    contentDescription = item.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(ScrimHeroTop, ScrimHeroBottom),
+                            ),
+                        ),
+                )
+                Column(
+                    Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(16.dp),
+                ) {
+                    Text(
+                        item.title,
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleLarge,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(Color.White.copy(alpha = 0.22f))
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Rounded.PlayArrow,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    "立即播放",
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            item.year,
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 12.sp,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** 继续观看列表行（布局族 2：横向封面 + 文本 + 进度条）。 */
+@Composable
+private fun ContinueRow(
+    record: PlayRecord,
+    onClick: () -> Unit,
+) {
+    val progress = if (record.totalTime > 0) {
+        (record.playTime.toFloat() / record.totalTime).coerceIn(0f, 1f)
+    } else 0f
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier
+                .width(96.dp)
+                .aspectRatio(16f / 9f)
+                .clip(RoundedCornerShape(10.dp)),
+        ) {
+            AsyncImage(
+                model = record.cover,
+                contentDescription = record.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(ScrimHeavy.copy(alpha = 0.35f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Rounded.PlayArrow,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(26.dp),
+                )
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                record.title,
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(3.dp))
+            Text(
+                if (record.totalEpisodes > 1) {
+                    "${record.sourceName} · 第${record.index}集 / 共${record.totalEpisodes}集"
+                } else {
+                    record.sourceName
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(8.dp))
+            GradientProgressBar(progress, height = 3.dp)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "${(record.playTime / 60)}分",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+            )
+        }
+        Icon(
+            Icons.Rounded.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+            modifier = Modifier.size(20.dp),
+        )
     }
 }
 
@@ -233,7 +425,7 @@ private fun HomeHeader(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 appState.siteName,
-                fontSize = 26.sp,
+                style = MaterialTheme.typography.displayLarge,
                 fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.primary,
             )

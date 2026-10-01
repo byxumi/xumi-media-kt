@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.AdminPanelSettings
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.DarkMode
@@ -151,7 +152,7 @@ fun ProfileScreen(
                 onClick = {},
             )
             SettingsItem(
-                icon = Icons.Rounded.Logout,
+                icon = Icons.AutoMirrored.Rounded.Logout,
                 title = "退出登录",
                 subtitle = null,
                 danger = true,

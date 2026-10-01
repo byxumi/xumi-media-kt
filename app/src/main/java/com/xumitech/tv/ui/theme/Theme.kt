@@ -1,11 +1,18 @@
 package com.xumitech.tv.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 // ---------------- 品牌色（深色影视风 月光紫 + 天空蓝） ----------------
 val Primary = Color(0xFF6C5CE7)        // 月光紫
@@ -26,6 +33,50 @@ val LiquidAccentDark = Color(0xFF7C8CFF)    // 深色: 亮紫蓝
 val LoginGradientTop = Color(0xFF201650)
 val LoginGradientMid = Color(0xFF3B2178)
 val LoginGradientBottom = Color(0xFF0B0C14)
+
+// ---------------- 语义 token（覆盖层 / 角标 / 玻璃, 替代散落硬编码） ----------------
+/** 海报底部渐变遮罩（PosterTile/FavoriteTile/今日更新） */
+val Scrim = Color(0x66000000)
+/** 重遮罩: 播放页顶部/底部渐变、角标底 */
+val ScrimHeavy = Color(0xCC000000)
+/** 轻遮罩: 播放卡/历史卡播放图标底 */
+val ScrimLight = Color(0x33000000)
+/** 详情头图遮罩上 */
+val ScrimHeroTop = Color(0x55000000)
+/** 详情头图遮罩下 */
+val ScrimHeroBottom = Color(0xE60B0C12)
+/** 追更未看角标底（深蓝） */
+val BadgeBlue = Color(0xE6142B3F)
+/** 今日更新角标底（深绿） */
+val BadgeGreen = Color(0xE6007A2D)
+/** 删除角标底 */
+val BadgeDelete = Color(0x99000000)
+/** 玻璃深底（播放页面板/测速卡, 与 Common GlassCard 同族） */
+val GlassDeep = Color(0xFF14161F)
+/** 玻璃中底（Shimmer/描边） */
+val GlassMid = Color(0xFF2A2D3A)
+
+// ---------------- shape token（形状单一档位） ----------------
+val XumiShapes = Shapes(
+    extraSmall = RoundedCornerShape(10.dp),   // chip / 列表行
+    small = RoundedCornerShape(12.dp),        // 海报封面 / 表单
+    medium = RoundedCornerShape(14.dp),       // 按钮 / 输入框
+    large = RoundedCornerShape(20.dp),        // 玻璃卡片
+    extraLarge = RoundedCornerShape(24.dp),   // 大卡 / 对话框
+)
+
+// ---------------- type scale（字号单一档位） ----------------
+val XumiTypography = Typography(
+    displayLarge = TextStyle(fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.sp),
+    headlineMedium = TextStyle(fontSize = 24.sp, fontWeight = FontWeight.ExtraBold),   // 页标题
+    titleLarge = TextStyle(fontSize = 22.sp, fontWeight = FontWeight.Bold),            // 详情标题
+    titleMedium = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.Bold),           // 区块标题
+    titleSmall = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.SemiBold),        // 卡片标题
+    bodyLarge = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Normal),           // 正文/按钮
+    bodyMedium = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Normal),          // 简介/次要正文
+    labelLarge = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium),          // 角标/标签
+    labelSmall = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Medium),          // 微标注
+)
 
 // ---------------- 深色色板（默认影视风, 品牌紫蓝层次增强） ----------------
 private val DarkColors = darkColorScheme(
@@ -96,6 +147,8 @@ fun XumiTheme(
 ) {
     MaterialTheme(
         colorScheme = if (darkTheme) DarkColors else LightColors,
+        shapes = XumiShapes,
+        typography = XumiTypography,
         content = content,
     )
 }

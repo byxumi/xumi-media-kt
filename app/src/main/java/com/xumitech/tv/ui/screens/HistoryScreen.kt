@@ -2,7 +2,6 @@ package com.xumitech.tv.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -21,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.PlayCircleOutline
+import androidx.compose.material.icons.rounded.VideoLibrary
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -30,7 +30,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -42,6 +41,9 @@ import com.xumitech.tv.AppState
 import com.xumitech.tv.model.DoubanItem
 import com.xumitech.tv.model.PlayRecord
 import com.xumitech.tv.ui.components.EmptyState
+import com.xumitech.tv.ui.components.GradientProgressBar
+import com.xumitech.tv.ui.components.ListSkeleton
+import com.xumitech.tv.ui.theme.ScrimLight
 
 /** 历史页：播放记录列表，点击续播，删除记录。 */
 @Composable
@@ -51,6 +53,7 @@ fun HistoryScreen(
     onResume: (DoubanItem, Int, Long) -> Unit,
 ) {
     val records = appState.playRecords
+    val loading = appState.historyLoading
 
     LaunchedEffect(Unit) {
         appState.loadPlayRecords()
@@ -59,42 +62,47 @@ fun HistoryScreen(
     Column(Modifier.fillMaxSize()) {
         Text(
             "观看历史",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.ExtraBold,
+            style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
         )
-        if (records.isEmpty()) {
-            EmptyState("还没有观看记录")
-        } else {
-            // 按保存时间倒序
-            val sorted = records.values.sortedByDescending { it.saveTime }
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 32.dp),
-            ) {
-                items(sorted, key = { it.title + it.sourceName + it.index + it.saveTime }) { r ->
-                    HistoryItem(
-                        record = r,
-                        onClick = {
-                            onResume(
-                                DoubanItem(
-                                    id = "",
-                                    title = r.title,
-                                    poster = r.cover,
-                                    source = "",
-                                    sourceName = r.sourceName,
-                                    year = r.year,
-                                ),
-                                r.index - 1,
-                                r.playTime.toLong(),
-                            )
-                        },
-                        onDelete = {
-                            // 用 source+title 构造 key 删除
-                            val key = findKey(records, r)
-                            if (key != null) appState.removeRecord(key)
-                        },
-                    )
+        when {
+            loading && records.isEmpty() -> ListSkeleton()
+            records.isEmpty() -> EmptyState(
+                "还没有观看记录",
+                icon = Icons.Rounded.VideoLibrary,
+                hint = "看过的影片会在这里记录进度",
+            )
+            else -> {
+                // 按保存时间倒序
+                val sorted = records.values.sortedByDescending { it.saveTime }
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 32.dp),
+                ) {
+                    items(sorted, key = { it.title + it.sourceName + it.index + it.saveTime }) { r ->
+                        HistoryItem(
+                            record = r,
+                            onClick = {
+                                onResume(
+                                    DoubanItem(
+                                        id = "",
+                                        title = r.title,
+                                        poster = r.cover,
+                                        source = "",
+                                        sourceName = r.sourceName,
+                                        year = r.year,
+                                    ),
+                                    r.index - 1,
+                                    r.playTime.toLong(),
+                                )
+                            },
+                            onDelete = {
+                                // 用 source+title 构造 key 删除
+                                val key = findKey(records, r)
+                                if (key != null) appState.removeRecord(key)
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -141,7 +149,7 @@ private fun HistoryItem(
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(Color(0x33000000)),
+                    .background(ScrimLight),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -157,8 +165,7 @@ private fun HistoryItem(
             Text(
                 text = record.title,
                 maxLines = 1,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurface,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -170,36 +177,16 @@ private fun HistoryItem(
                     record.sourceName
                 },
                 maxLines = 1,
-                fontSize = 11.sp,
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
             )
             Spacer(Modifier.height(8.dp))
-            // 进度条
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(4.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(2.dp)),
-            ) {
-                Box(
-                    Modifier
-                        .fillMaxWidth(progress)
-                        .height(4.dp)
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(
-                                    MaterialTheme.colorScheme.primary,
-                                    Color(0xFF0EA5E9),
-                                ),
-                            ),
-                            RoundedCornerShape(2.dp),
-                        ),
-                )
-            }
+            // 进度条（公共组件）
+            GradientProgressBar(progress, height = 4.dp)
             Spacer(Modifier.height(4.dp))
             Text(
                 text = "${formatTime(record.playTime)} / ${formatTime(record.totalTime)}",
-                fontSize = 10.sp,
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
             )
         }

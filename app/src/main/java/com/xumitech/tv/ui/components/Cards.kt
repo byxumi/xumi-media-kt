@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,19 +27,64 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.xumitech.tv.model.DoubanItem
 import com.xumitech.tv.model.PlayRecord
+import com.xumitech.tv.ui.theme.BadgeBlue
+import com.xumitech.tv.ui.theme.BadgeGreen
+import com.xumitech.tv.ui.theme.Gold
+import com.xumitech.tv.ui.theme.Scrim
+import com.xumitech.tv.ui.theme.ScrimHeavy
+import com.xumitech.tv.ui.theme.ScrimLight
+import com.xumitech.tv.ui.theme.SkyBlue
 
-/** 海报卡片（学 Flutter PosterImage：圆角 + 底部渐变 + 评分角标）。 */
+/** 海报底部渐变遮罩（PosterTile 家族共用）。 */
+private fun Modifier.posterScrim(): Modifier = this.background(
+    Brush.verticalGradient(
+        colors = listOf(Color.Transparent, Scrim),
+        startY = 400f,
+        endY = 600f,
+    ),
+)
+
+/** 卡片通用小角标。 */
+@Composable
+private fun TileBadge(
+    text: String,
+    background: Color,
+    textColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier
+            .background(background, RoundedCornerShape(6.dp))
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+    ) {
+        Text(
+            text = text,
+            color = textColor,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+        )
+    }
+}
+
+/** 海报卡片（统一 4 变体: PosterTile / GridPoster / FavoriteTile / 搜索源卡）。 */
 @Composable
 fun PosterTile(
-    item: DoubanItem,
+    title: String,
+    poster: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    width: androidx.compose.ui.unit.Dp = 112.dp,
+    width: Dp = 112.dp,
+    rate: String? = null,
+    badge: (@Composable () -> Unit)? = null,
+    topEnd: (@Composable () -> Unit)? = null,
+    subtitle: String? = null,
 ) {
     Column(
         modifier
@@ -52,58 +98,99 @@ fun PosterTile(
                 .clip(RoundedCornerShape(12.dp)),
         ) {
             AsyncImage(
-                model = item.poster,
-                contentDescription = item.title,
+                model = poster,
+                contentDescription = title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
-            // 底部渐变遮罩
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color(0x66000000)),
-                            startY = 400f,
-                            endY = 600f,
-                        ),
-                    ),
-            )
-            // 评分角标
-            if (item.rate.isNotEmpty() && item.rate != "0") {
+            Box(Modifier.fillMaxSize().posterScrim())
+            if (rate != null && rate.isNotEmpty() && rate != "0") {
                 Box(
                     Modifier
                         .align(Alignment.TopEnd)
                         .padding(6.dp)
-                        .background(Color(0xCC000000), RoundedCornerShape(50))
+                        .background(ScrimHeavy, RoundedCornerShape(50))
                         .padding(horizontal = 6.dp, vertical = 2.dp),
                 ) {
                     Text(
-                        text = item.rate,
-                        color = Color(0xFFFFC53D),
+                        text = rate,
+                        color = Gold,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                     )
                 }
             }
+            if (topEnd != null) {
+                Box(Modifier.align(Alignment.TopEnd).padding(2.dp)) { topEnd() }
+            }
+            if (badge != null) {
+                Box(Modifier.align(Alignment.BottomEnd).padding(6.dp)) { badge() }
+            }
         }
         Spacer(Modifier.height(6.dp))
         Text(
-            text = item.title,
+            text = title,
             maxLines = 1,
-            fontSize = 13.sp,
+            style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
             overflow = TextOverflow.Ellipsis,
         )
-        if (item.year.isNotEmpty()) {
+        if (subtitle != null) {
             Text(
-                text = item.year,
+                text = subtitle,
                 maxLines = 1,
-                fontSize = 11.sp,
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
             )
         }
+    }
+}
+
+/** 兼容旧签名: 由 DoubanItem 驱动。 */
+@Composable
+fun PosterTile(
+    item: DoubanItem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    width: Dp = 112.dp,
+) {
+    PosterTile(
+        title = item.title,
+        poster = item.poster,
+        onClick = onClick,
+        modifier = modifier,
+        width = width,
+        rate = item.rate,
+        subtitle = item.year,
+    )
+}
+
+/** 公共渐变进度条（ContinueWatchingCard / HistoryItem / Detail / Play 共用）。 */
+@Composable
+fun GradientProgressBar(
+    progress: Float,
+    modifier: Modifier = Modifier,
+    height: Dp = 3.dp,
+    corner: Dp = 2.dp,
+) {
+    Box(
+        modifier
+            .fillMaxWidth()
+            .height(height)
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(corner)),
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth(progress.coerceIn(0f, 1f))
+                .height(height)
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(MaterialTheme.colorScheme.primary, SkyBlue),
+                    ),
+                    RoundedCornerShape(corner),
+                ),
+        )
     }
 }
 
@@ -139,10 +226,10 @@ fun ContinueWatchingCard(
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(Color(0x33000000)),
+                    .background(ScrimLight),
             ) {
-                androidx.compose.material3.Icon(
-                    imageVector = androidx.compose.material.icons.Icons.Rounded.PlayArrow,
+                Icon(
+                    imageVector = Icons.Rounded.PlayArrow,
                     contentDescription = "继续播放",
                     tint = Color.White,
                     modifier = Modifier
@@ -152,57 +239,29 @@ fun ContinueWatchingCard(
             }
             // 集数角标
             if (record.totalEpisodes > 1) {
-                Box(
-                    Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(6.dp)
-                        .background(Color(0xCC000000), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
-                ) {
-                    Text(
-                        text = "第${record.index}集",
-                        color = Color.White,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Medium,
-                    )
-                }
+                TileBadge(
+                    text = "第${record.index}集",
+                    background = ScrimHeavy,
+                    textColor = Color.White,
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp),
+                )
             }
         }
         Spacer(Modifier.height(6.dp))
         Text(
             text = record.title,
             maxLines = 1,
-            fontSize = 13.sp,
+            style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
             overflow = TextOverflow.Ellipsis,
         )
-        // 进度条
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(3.dp)
-                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(2.dp)),
-        ) {
-            Box(
-                Modifier
-                    .fillMaxWidth(progress)
-                    .height(3.dp)
-                    .background(
-                        Brush.horizontalGradient(
-                            listOf(
-                                MaterialTheme.colorScheme.primary,
-                                Color(0xFF0EA5E9),
-                            ),
-                        ),
-                        RoundedCornerShape(2.dp),
-                    ),
-            )
-        }
+        Spacer(Modifier.height(4.dp))
+        GradientProgressBar(progress)
         Spacer(Modifier.height(4.dp))
         Text(
             text = formatPlayTime(record.playTime),
-            fontSize = 10.sp,
+            style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
         )
     }
@@ -226,68 +285,23 @@ fun FollowingCard(
     modifier: Modifier = Modifier,
 ) {
     val unwatched = (totalEpisodes - watchedEpisodes).coerceAtLeast(0)
-    Column(
-        modifier
-            .width(110.dp)
-            .clickable(onClick = onClick),
-    ) {
-        Box(
-            Modifier
-                .width(110.dp)
-                .aspectRatio(2f / 3f)
-                .clip(RoundedCornerShape(12.dp)),
-        ) {
-            AsyncImage(
-                model = poster,
-                contentDescription = title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color(0x66000000)),
-                            startY = 400f,
-                            endY = 600f,
-                        ),
-                    ),
-            )
-            // 未看角标（学 Flutter: '$unwatched 未看'）
-            if (unwatched > 0) {
-                Box(
-                    Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(6.dp)
-                        .background(Color(0xE6142B3F), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 7.dp, vertical = 2.dp),
-                ) {
-                    Text(
-                        text = "$unwatched 未看",
-                        color = Color(0xFFFFC53D),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
+    PosterTile(
+        title = title,
+        poster = poster,
+        onClick = onClick,
+        modifier = modifier,
+        width = 110.dp,
+        badge = if (unwatched > 0) {
+            {
+                TileBadge(
+                    text = "$unwatched 未看",
+                    background = BadgeBlue,
+                    textColor = Gold,
+                )
             }
-        }
-        Spacer(Modifier.height(6.dp))
-        Text(
-            text = title,
-            maxLines = 1,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            text = "看完 $watchedEpisodes/$totalEpisodes 集",
-            maxLines = 1,
-            fontSize = 11.sp,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
-        )
-    }
+        } else null,
+        subtitle = "看完 $watchedEpisodes/$totalEpisodes 集",
+    )
 }
 
 /** 今日新更卡片（学 Flutter _TodayUpdated）：更新+新集数角标。 */
@@ -300,66 +314,21 @@ fun TodayUpdatedCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier
-            .width(128.dp)
-            .clickable(onClick = onClick),
-    ) {
-        Box(
-            Modifier
-                .width(128.dp)
-                .aspectRatio(2f / 3f)
-                .clip(RoundedCornerShape(12.dp)),
-        ) {
-            AsyncImage(
-                model = poster,
-                contentDescription = title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color(0x66000000)),
-                            startY = 400f,
-                            endY = 600f,
-                        ),
-                    ),
-            )
-            // 更新角标（学 Flutter: '更新+N'）
-            if (newEpisodes > 0) {
-                Box(
-                    Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(6.dp)
-                        .background(Color(0xE6007A2D), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 7.dp, vertical = 2.dp),
-                ) {
-                    Text(
-                        text = "更新+$newEpisodes",
-                        color = Color.White,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
+    PosterTile(
+        title = title,
+        poster = poster,
+        onClick = onClick,
+        modifier = modifier,
+        width = 128.dp,
+        badge = if (newEpisodes > 0) {
+            {
+                TileBadge(
+                    text = "更新+$newEpisodes",
+                    background = BadgeGreen,
+                    textColor = Color.White,
+                )
             }
-        }
-        Spacer(Modifier.height(6.dp))
-        Text(
-            text = title,
-            maxLines = 1,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            text = sourceName,
-            maxLines = 1,
-            fontSize = 11.sp,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
-        )
-    }
+        } else null,
+        subtitle = sourceName,
+    )
 }
