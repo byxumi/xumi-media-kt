@@ -2,9 +2,10 @@ package com.xumitech.tv.ui.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -13,30 +14,38 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kyant.backdrop.backdrops.emptyBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -52,6 +61,8 @@ import com.xumitech.tv.ui.theme.LiquidAccentDark
 import com.xumitech.tv.ui.theme.LiquidAccentLight
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.drop
+import kotlin.math.abs
+import kotlin.math.sign
 
 data class NavTab(
     val label: String,
@@ -60,16 +71,14 @@ data class NavTab(
 )
 
 /**
- * 真·液态玻璃底部导航栏（AndroidLiquidGlass / Kyant0 backdrop 库）。
+ * 真·液态玻璃底部导航栏 —— 完整移植官方 Kyant0/AndroidLiquidGlass LiquidBottomTabs 动效。
  *
- * 完整复刻 LiquidBottomTabs 视觉语言：
- * - **玻璃面板**：layerBackdrop 录制背后内容 → lens(22dp) 折射 + blur(10dp) + vibrancy 增艳
- * - **选中指示器**：lens + chromaticAberration + Highlight + Shadow + InnerShadow，
- *   随选中 spring 弹性流动（dampingRatio 0.68 轻微超调 = 液态感）
- * - **按压鼓胀**（学 DampedDragAnimation）：按下时指示器放大 1.08x + 高光增强，
- *   松手弹簧回弹（pressProgress → scale）
- * - **动效图标**：选中图标 spring 弹性放大 + 颜色渐变过渡 + 文字加粗渐变，
- *   未选中图标微缩放回
+ * 官方目录样例的动效引擎逐一对齐：
+ * - **[DampedDragAnimation]**: 液滴拖拽 —— 按下鼓胀、横向拖动跟随、松手惯性回弹、
+ *   速度参与 scale 形变(液态拉长), 目标 Tab 弹性吸附
+ * - **[InteractiveHighlight]**: 按压径向高亮(触点光晕, RuntimeShader)
+ * - 三层叠绘: 玻璃面板(折射+模糊+增艳) / 采样层(录制背后内容) / 液态指示器滴
+ * - **动效图标**: 选中图标弹性放大 + 径向发光 + 颜色渐变过渡
  */
 @Composable
 fun LiquidNavBar(
@@ -78,181 +87,251 @@ fun LiquidNavBar(
     onSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val isLight = !isSystemInDarkTheme()
-    val accent = if (isLight) LiquidAccentLight else LiquidAccentDark
+    val inDark = isSystemInDarkTheme()
+    val accent = if (inDark) LiquidAccentDark else LiquidAccentLight
     val containerColor =
-        if (isLight) Color(0xFFFAFAFA).copy(alpha = 0.5f)
-        else Color(0xFF121212).copy(alpha = 0.5f)
+        if (inDark) Color(0xFF121212).copy(alpha = 0.4f)
+        else Color(0xFFFAFAFA).copy(alpha = 0.4f)
     val textColor =
-        if (isLight) Color(0xCC111111) else Color(0xCCEEEEEE)
+        if (inDark) Color(0xCCF2F2F2) else Color(0xCC111111)
 
     val tabsBackdrop = rememberLayerBackdrop()
-    val indicator = remember { Animatable(selectedIndex.toFloat()) }
-
-    // 外部索引变化 → 胶囊平滑流动（spring 弹性）
-    LaunchedEffect(selectedIndex) {
-        snapshotFlow { selectedIndex }
-            .drop(1)
-            .collectLatest { i ->
-                indicator.animateTo(
-                    i.toFloat(),
-                    spring(dampingRatio = 0.68f, stiffness = 380f),
-                )
-            }
-    }
+    val animationScope = rememberCoroutineScope()
 
     BoxWithConstraints(
         modifier
             .fillMaxWidth()
             .navigationBarsPadding()
             .padding(horizontal = 10.dp, vertical = 8.dp)
-            .height(64.dp),
+            .height(66.dp),
     ) {
-        val tabWidth = constraints.maxWidth / tabs.size
+        val density = LocalDensity.current
+        // 官方: tab 宽度按 (总宽 - 两侧 4dp 边距) / 数量
+        val tabWidth = with(density) {
+            (constraints.maxWidth.toFloat() - 8f.dp.toPx()) / tabs.size
+        }
+        val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
+        val lastIndex = (tabs.size - 1).coerceAtLeast(0)
 
-        // 0) 采样层：把背后内容录制进 tabsBackdrop（不绘制可见内容）
+        // ---- 液滴拖拽引擎(官方 DampedDragAnimation) ----
+        val damped = remember(animationScope, tabs.size) {
+            DampedDragAnimation(
+                animationScope = animationScope,
+                initialValue = selectedIndex.toFloat(),
+                valueRange = 0f..lastIndex.toFloat(),
+                visibilityThreshold = 0.001f,
+                initialScale = 1f,
+                pressedScale = 1.12f,
+                onDragStarted = {},
+                onDragStopped = {
+                    val target = targetValue.toInt().coerceIn(0, lastIndex)
+                    onSelected(target)
+                    animateToValue(target.toFloat())
+                },
+                onDrag = { _, dragAmount ->
+                    updateValue(
+                        (value + dragAmount.x / tabWidth)
+                            .coerceIn(0f, lastIndex.toFloat()),
+                    )
+                },
+            )
+        }
+
+        // 外部索引变化 → 液滴弹性吸附到对应 Tab
+        LaunchedEffect(selectedIndex, damped) {
+            snapshotFlow { selectedIndex }
+                .drop(1)
+                .collectLatest { index ->
+                    damped.animateToValue(index.toFloat())
+                    onSelected(index)
+                }
+        }
+
+        // 面板轻微反方向位移(官方 panelOffset 简化版: 拖拽时玻璃面板微微后退)
+        val panelOffsetPx = with(density) {
+            val frac = damped.progress - damped.progress.toInt()
+            4f.dp.toPx() * frac.sign * EaseOut.transform(abs(frac))
+        }
+
+        // 0) 采样层: 录制背后内容(不可见)
         Box(
             Modifier
                 .fillMaxWidth()
-                .height(64.dp)
+                .height(66.dp)
                 .layerBackdrop(tabsBackdrop),
         )
 
-        // 1) 玻璃面板：实时折射背后的内容
+        // 1) 玻璃面板: 折射背后内容
         Box(
             Modifier
                 .fillMaxWidth()
-                .height(64.dp)
+                .height(66.dp)
+                .graphicsLayer { translationX = panelOffsetPx }
                 .drawBackdrop(
                     backdrop = tabsBackdrop,
                     shape = { Capsule() },
                     effects = {
                         vibrancy()
                         blur(10.dp.toPx())
-                        lens(22.dp.toPx(), 22.dp.toPx())
+                        lens(24.dp.toPx(), 24.dp.toPx())
                     },
                     onDrawSurface = { drawRect(containerColor) },
                 ),
         )
 
-        // 2) 选中指示器：弹性胶囊，随 indicator 平移 + 按压鼓胀
-        var pressed by remember { mutableStateOf(false) }
-        val pressScale = remember { Animatable(1f) }
-        LaunchedEffect(pressed) {
-            if (pressed) {
-                pressScale.animateTo(
-                    1.08f,
-                    spring(dampingRatio = 0.4f, stiffness = 500f),
-                )
-            } else {
-                pressScale.animateTo(
-                    1f,
-                    spring(dampingRatio = 0.6f, stiffness = 400f),
-                )
-            }
+        // 2) 液态指示器滴: 随液滴拖拽平移 + 按压鼓胀 + 速度形变 + 径向高光
+        val highlight = remember(animationScope) {
+            InteractiveHighlight(
+                animationScope = animationScope,
+                position = { size, offset ->
+                    androidx.compose.ui.geometry.Offset(
+                        if (isLtr) (damped.value + 0.5f) * tabWidth
+                        else size.width - (damped.value + 0.5f) * tabWidth,
+                        size.height / 2f,
+                    )
+                },
+            )
         }
+
         Box(
             Modifier
-                .graphicsLayer {
-                    translationX = indicator.value * tabWidth
-                    scaleX = pressScale.value
-                    scaleY = pressScale.value
-                }
+                .padding(horizontal = 4.dp)
                 .fillMaxWidth(1f / tabs.size)
-                .height(64.dp)
-                .padding(horizontal = 8.dp)
+                .height(66.dp)
+                .graphicsLayer {
+                    translationX =
+                        if (isLtr) damped.value * tabWidth + panelOffsetPx
+                        else (constraints.maxWidth.toFloat() - 8f.dp.toPx()) +
+                            (lastIndex - damped.value) * tabWidth + panelOffsetPx
+                    scaleX = damped.scaleX
+                    scaleY = damped.scaleY
+                    // 速度形变: 快速拖动时液滴被拉长
+                    val velocity = damped.velocity / 10f
+                    scaleX /= (1f - (velocity * 0.75f).coerceIn(-0.2f, 0.2f))
+                    scaleY *= (1f - (velocity * 0.25f).coerceIn(-0.2f, 0.2f))
+                }
                 .drawBackdrop(
                     backdrop = rememberCombinedBackdrop(tabsBackdrop),
                     shape = { Capsule() },
                     effects = {
-                        lens(12.dp.toPx(), 14.dp.toPx(), chromaticAberration = true)
+                        val progress = damped.pressProgress
+                        lens(10.dp.toPx() * progress, 14.dp.toPx() * progress, chromaticAberration = true)
                     },
                     highlight = {
-                        Highlight.Default.copy(
-                            alpha = 0.6f + pressScale.value * 0.3f,
-                        )
+                        Highlight.Default.copy(alpha = damped.pressProgress)
                     },
-                    shadow = { Shadow(alpha = 0.45f) },
-                    innerShadow = { InnerShadow(radius = 6.dp, alpha = 0.35f) },
+                    shadow = {
+                        Shadow(alpha = damped.pressProgress)
+                    },
+                    innerShadow = {
+                        InnerShadow(radius = 8.dp * damped.pressProgress, alpha = damped.pressProgress)
+                    },
                     onDrawSurface = {
+                        val progress = damped.pressProgress
+                        // 未按压时半透明玻璃底, 按压时渐变为品牌色(液态充满)
                         drawRect(
-                            // 选中时渐变更亮（按压鼓胀 → 折射增强）
-                            accent.copy(alpha = 0.22f + pressScale.value * 0.08f),
+                            if (inDark) Color.White.copy(0.08f) else Color.Black.copy(0.08f),
+                            alpha = 1f - progress,
                         )
+                        drawRect(accent.copy(alpha = 0.35f + 0.45f * progress))
                     },
-                ),
+                )
+                .then(highlight.modifier)
+                .then(damped.modifier)
         )
 
-        // 3) 内容与点击层（动效图标）
+        // 3) Tab 内容层(图标 + 文字, 可点击)
         Row(
             Modifier
                 .fillMaxWidth()
-                .height(64.dp),
+                .height(66.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             tabs.forEachIndexed { i, tab ->
-                val selected = i == selectedIndex
-                // 图标颜色动画
-                val iconColor by animateColorAsState(
-                    targetValue = if (selected) accent else textColor.copy(alpha = 0.6f),
-                    animationSpec = tween(300),
-                    label = "iconColor",
-                )
-                // 选中图标弹性放大
-                val iconScale = remember {
-                    Animatable(if (selected) 1f else 0.92f)
-                }
-                LaunchedEffect(selected) {
-                    iconScale.animateTo(
-                        if (selected) 1f else 0.92f,
-                        spring(dampingRatio = 0.5f, stiffness = 400f),
-                    )
-                }
-                // 文字颜色动画
-                val labelColor by animateColorAsState(
-                    targetValue = if (selected) accent else textColor.copy(alpha = 0.6f),
-                    animationSpec = tween(300),
-                    label = "labelColor",
-                )
-                Column(
-                    Modifier
+                LiquidNavItem(
+                    tab = tab,
+                    selected = i == selectedIndex,
+                    accent = accent,
+                    textColor = textColor,
+                    modifier = Modifier
                         .weight(1f)
-                        .height(64.dp)
+                        .height(66.dp)
+                        .clip(Capsule())
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
+                            role = Role.Tab,
                         ) {
-                            if (!selected) {
-                                pressed = true
-                                onSelected(i)
-                            }
+                            if (i != selectedIndex) onSelected(i)
                         },
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Icon(
-                        imageVector = if (selected) tab.activeIcon else tab.icon,
-                        contentDescription = tab.label,
-                        tint = iconColor,
-                        modifier = Modifier
-                            .size(24.dp)
-                            .scale(iconScale.value),
-                    )
-                    Text(
-                        text = tab.label,
-                        color = labelColor,
-                        fontSize = 10.sp,
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                        maxLines = 1,
-                    )
-                }
+                )
             }
         }
+    }
+}
 
-        // 松手释放按压状态（延迟避免闪烁）
-        LaunchedEffect(selectedIndex) {
-            kotlinx.coroutines.delay(150)
-            pressed = false
+/** 单个导航项: 动效图标(选中弹性放大 + 发光 + 颜色渐变) + 文字。 */
+@Composable
+private fun RowScope.LiquidNavItem(
+    tab: NavTab,
+    selected: Boolean,
+    accent: Color,
+    textColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    val iconScale = remember { Animatable(if (selected) 1f else 0.88f) }
+    LaunchedEffect(selected) {
+        iconScale.animateTo(
+            if (selected) 1f else 0.88f,
+            spring(dampingRatio = 0.5f, stiffness = 400f),
+        )
+    }
+    val iconColor by animateColorAsState(
+        targetValue = if (selected) accent else textColor.copy(alpha = 0.6f),
+        animationSpec = tween(300),
+        label = "iconColor",
+    )
+    val labelColor by animateColorAsState(
+        targetValue = if (selected) accent else textColor.copy(alpha = 0.6f),
+        animationSpec = tween(300),
+        label = "labelColor",
+    )
+
+    Column(
+        modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            // 选中发光底(径向渐变光晕)
+            if (selected) {
+                Box(
+                    Modifier
+                        .size(46.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(accent.copy(alpha = 0.30f), Color.Transparent),
+                                center = androidx.compose.ui.geometry.Offset(0.5f, 0.5f),
+                                radius = 34f,
+                            ),
+                        ),
+                )
+            }
+            Icon(
+                imageVector = if (selected) tab.activeIcon else tab.icon,
+                contentDescription = tab.label,
+                tint = iconColor,
+                modifier = Modifier
+                    .size(24.dp)
+                    .scale(iconScale.value),
+            )
         }
+        Text(
+            text = tab.label,
+            color = labelColor,
+            fontSize = 10.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+        )
     }
 }

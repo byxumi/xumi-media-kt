@@ -1,8 +1,12 @@
 package com.xumitech.tv.ui.screens
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +32,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -50,6 +56,8 @@ import com.xumitech.tv.ui.theme.LoginGradientBottom
 import com.xumitech.tv.ui.theme.LoginGradientMid
 import com.xumitech.tv.ui.theme.LoginGradientTop
 import com.xumitech.tv.ui.theme.Primary
+import com.xumitech.tv.ui.theme.PrimaryDark
+import com.xumitech.tv.ui.theme.PrimaryLight
 import com.xumitech.tv.ui.theme.SkyBlue
 
 /**
@@ -86,12 +94,12 @@ fun LoginScreen(
         Box(
             Modifier
                 .align(Alignment.TopCenter)
-                .size(320.dp, 320.dp)
+                .size(380.dp, 340.dp)
                 .background(
                     Brush.radialGradient(
                         listOf(
-                            Primary.copy(alpha = 0.35f),
-                            Primary.copy(alpha = 0.12f),
+                            Primary.copy(alpha = 0.45f),
+                            SkyBlue.copy(alpha = 0.18f),
                             Color.Transparent,
                         ),
                     ),
@@ -101,12 +109,26 @@ fun LoginScreen(
         Box(
             Modifier
                 .align(Alignment.BottomCenter)
-                .size(420.dp, 300.dp)
+                .size(460.dp, 320.dp)
                 .background(
                     Brush.radialGradient(
                         listOf(
-                            SkyBlue.copy(alpha = 0.25f),
-                            SkyBlue.copy(alpha = 0.08f),
+                            SkyBlue.copy(alpha = 0.32f),
+                            Aqua.copy(alpha = 0.10f),
+                            Color.Transparent,
+                        ),
+                    ),
+                ),
+        )
+        // 左侧紫色氛围
+        Box(
+            Modifier
+                .align(Alignment.CenterStart)
+                .size(300.dp, 360.dp)
+                .background(
+                    Brush.radialGradient(
+                        listOf(
+                            PrimaryDark.copy(alpha = 0.28f),
                             Color.Transparent,
                         ),
                     ),
@@ -152,22 +174,44 @@ fun LoginScreen(
             )
             Spacer(Modifier.height(36.dp))
 
-            // 输入卡片（液态玻璃质感：半透明 + 顶部受光 + 细边框）
+            // 输入卡片（液态玻璃质感：半透明 + 顶部受光 + 细边框 + 品牌色渐变描边）
             Column(
                 Modifier
                     .fillMaxWidth()
                     .background(
                         Brush.verticalGradient(
                             listOf(
-                                Color(0xFF1E2130).copy(alpha = 0.85f),
-                                Color(0xFF14161F).copy(alpha = 0.75f),
+                                Color(0xFF232739).copy(alpha = 0.92f),
+                                Color(0xFF14161F).copy(alpha = 0.85f),
                             ),
                         ),
                         RoundedCornerShape(24.dp),
                     )
-                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(24.dp))
+                    .border(
+                        1.dp,
+                        Brush.linearGradient(
+                            listOf(
+                                Color.White.copy(alpha = 0.14f),
+                                Primary.copy(alpha = 0.25f),
+                                SkyBlue.copy(alpha = 0.18f),
+                            ),
+                        ),
+                        RoundedCornerShape(24.dp),
+                    )
                     .padding(20.dp),
             ) {
+                // 顶部受光（玻璃高光）
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(36.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.White.copy(alpha = 0.10f), Color.Transparent),
+                            ),
+                            RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                        ),
+                )
                 Text(
                     if (isRegister) "创建账号" else "欢迎回来",
                     color = Color.White,
@@ -183,6 +227,7 @@ fun LoginScreen(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
+                    colors = loginFieldColors(),
                 )
                 Spacer(Modifier.height(10.dp))
                 OutlinedTextField(
@@ -192,6 +237,7 @@ fun LoginScreen(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
+                    colors = loginFieldColors(),
                 )
                 Spacer(Modifier.height(10.dp))
                 OutlinedTextField(
@@ -214,6 +260,7 @@ fun LoginScreen(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
+                    colors = loginFieldColors(),
                 )
 
                 if (error != null) {
@@ -226,18 +273,32 @@ fun LoginScreen(
                 }
 
                 Spacer(Modifier.height(18.dp))
-                // 品牌渐变登录按钮（紫→蓝→青 液态渐变 + 顶部受光）
+                // 品牌渐变登录按钮（紫→蓝→青 液态渐变 + 顶部受光 + 按压鼓胀）
+                val loginInteraction = remember { MutableInteractionSource() }
+                val loginPressed by loginInteraction.collectIsPressedAsState()
+                val loginScale = remember { Animatable(1f) }
+                LaunchedEffect(loginPressed) {
+                    loginScale.animateTo(
+                        if (loginPressed) 0.96f else 1f,
+                        spring(dampingRatio = 0.5f, stiffness = 500f),
+                    )
+                }
                 Box(
                     Modifier
                         .fillMaxWidth()
                         .height(50.dp)
+                        .scale(loginScale.value)
                         .clip(RoundedCornerShape(14.dp))
                         .background(
                             Brush.linearGradient(
                                 listOf(Primary, SkyBlue, Aqua),
                             ),
                         )
-                        .clickable(enabled = !loading) {
+                        .clickable(
+                            interactionSource = loginInteraction,
+                            indication = null,
+                            enabled = !loading,
+                        ) {
                             if (server.isBlank() || username.isBlank() || password.isBlank()) {
                                 error = "请填写完整信息"
                                 return@clickable
@@ -305,3 +366,17 @@ fun LoginScreen(
         }
     }
 }
+
+/** 登录页输入框配色: 深色玻璃风格(任何主题下一致)。 */
+@Composable
+private fun loginFieldColors() = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+    focusedTextColor = Color.White,
+    unfocusedTextColor = Color.White.copy(alpha = 0.9f),
+    cursorColor = SkyBlue,
+    focusedBorderColor = PrimaryLight.copy(alpha = 0.7f),
+    unfocusedBorderColor = Color.White.copy(alpha = 0.18f),
+    focusedLabelColor = SkyBlue,
+    unfocusedLabelColor = Color.White.copy(alpha = 0.55f),
+    focusedContainerColor = Color.White.copy(alpha = 0.06f),
+    unfocusedContainerColor = Color.White.copy(alpha = 0.04f),
+)
