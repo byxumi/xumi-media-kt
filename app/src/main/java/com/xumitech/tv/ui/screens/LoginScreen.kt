@@ -1,6 +1,8 @@
 package com.xumitech.tv.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,7 +20,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -43,7 +45,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xumitech.tv.AppState
 import com.xumitech.tv.data.MoonTvApi
+import com.xumitech.tv.ui.theme.Aqua
+import com.xumitech.tv.ui.theme.LoginGradientBottom
+import com.xumitech.tv.ui.theme.LoginGradientMid
+import com.xumitech.tv.ui.theme.LoginGradientTop
 import com.xumitech.tv.ui.theme.Primary
+import com.xumitech.tv.ui.theme.SkyBlue
 
 /**
  * 登录/注册页：服务器地址 + 用户名 + 密码。
@@ -67,10 +74,44 @@ fun LoginScreen(
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    listOf(Color(0xFF0B0C12), Color(0xFF1A1440), Color(0xFF0B0C12)),
+                    listOf(
+                        com.xumitech.tv.ui.theme.LoginGradientTop,
+                        com.xumitech.tv.ui.theme.LoginGradientMid,
+                        com.xumitech.tv.ui.theme.LoginGradientBottom,
+                    ),
                 ),
             ),
     ) {
+        // 顶部氛围光晕（紫蓝渐变，模拟液态玻璃受光）
+        Box(
+            Modifier
+                .align(Alignment.TopCenter)
+                .size(320.dp, 320.dp)
+                .background(
+                    Brush.radialGradient(
+                        listOf(
+                            Primary.copy(alpha = 0.35f),
+                            Primary.copy(alpha = 0.12f),
+                            Color.Transparent,
+                        ),
+                    ),
+                ),
+        )
+        // 底部蓝色光晕
+        Box(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .size(420.dp, 300.dp)
+                .background(
+                    Brush.radialGradient(
+                        listOf(
+                            SkyBlue.copy(alpha = 0.25f),
+                            SkyBlue.copy(alpha = 0.08f),
+                            Color.Transparent,
+                        ),
+                    ),
+                ),
+        )
         Column(
             Modifier
                 .fillMaxSize()
@@ -82,12 +123,14 @@ fun LoginScreen(
         ) {
             Spacer(Modifier.height(40.dp))
 
-            // Logo 区
+            // Logo 区（紫 → 蓝 → 青 液态渐变）
             Box(
                 Modifier
                     .size(76.dp)
                     .background(
-                        Brush.linearGradient(listOf(Primary, Color(0xFF0EA5E9))),
+                        Brush.linearGradient(
+                            listOf(Primary, SkyBlue, Aqua),
+                        ),
                         RoundedCornerShape(24.dp),
                     ),
                 contentAlignment = Alignment.Center,
@@ -109,11 +152,20 @@ fun LoginScreen(
             )
             Spacer(Modifier.height(36.dp))
 
-            // 输入卡片
+            // 输入卡片（液态玻璃质感：半透明 + 顶部受光 + 细边框）
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFF14161F).copy(alpha = 0.75f), RoundedCornerShape(24.dp))
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color(0xFF1E2130).copy(alpha = 0.85f),
+                                Color(0xFF14161F).copy(alpha = 0.75f),
+                            ),
+                        ),
+                        RoundedCornerShape(24.dp),
+                    )
+                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(24.dp))
                     .padding(20.dp),
             ) {
                 Text(
@@ -174,30 +226,51 @@ fun LoginScreen(
                 }
 
                 Spacer(Modifier.height(18.dp))
-                Button(
-                    onClick = {
-                        if (server.isBlank() || username.isBlank() || password.isBlank()) {
-                            error = "请填写完整信息"
-                            return@Button
-                        }
-                        loading = true
-                        error = null
-                        if (isRegister) {
-                            appState.register(server, username, password) { e ->
-                                loading = false
-                                if (e == null) onLoggedIn() else error = e
+                // 品牌渐变登录按钮（紫→蓝→青 液态渐变 + 顶部受光）
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(Primary, SkyBlue, Aqua),
+                            ),
+                        )
+                        .clickable(enabled = !loading) {
+                            if (server.isBlank() || username.isBlank() || password.isBlank()) {
+                                error = "请填写完整信息"
+                                return@clickable
                             }
-                        } else {
-                            appState.login(server, username, password) { e ->
-                                loading = false
-                                if (e == null) onLoggedIn() else error = e
+                            loading = true
+                            error = null
+                            if (isRegister) {
+                                appState.register(server, username, password) { e ->
+                                    loading = false
+                                    if (e == null) onLoggedIn() else error = e
+                                }
+                            } else {
+                                appState.login(server, username, password) { e ->
+                                    loading = false
+                                    if (e == null) onLoggedIn() else error = e
+                                }
                             }
                         }
-                    },
-                    enabled = !loading,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = RoundedCornerShape(14.dp),
+                        .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(14.dp)),
+                    contentAlignment = Alignment.Center,
                 ) {
+                    // 顶部受光
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(24.dp)
+                            .align(Alignment.TopCenter)
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(Color.White.copy(alpha = 0.18f), Color.Transparent),
+                                ),
+                            ),
+                    )
                     if (loading) {
                         CircularProgressIndicator(
                             color = Color.White,
@@ -207,6 +280,7 @@ fun LoginScreen(
                     } else {
                         Text(
                             if (isRegister) "注册并登录" else "登 录",
+                            color = Color.White,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                         )
