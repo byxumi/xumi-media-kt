@@ -393,4 +393,59 @@ object MoonTvApi {
             if (j["items"] != null) TodayUpdatedRecord.fromJson(j) else null
         }
     }
+
+    // ---------------- 管理后台 ----------------
+    /** 读取管理员配置（仅 owner/admin，401 无权限）。返回 {Role, Config}。 */
+    suspend fun getAdminConfig(): JsonObject {
+        return call("GET", "/api/admin/config") { res -> parseObject(res) }
+    }
+
+    /** 保存站点配置（透传 SiteConfig 字段）。 */
+    suspend fun saveAdminSite(site: Map<String, Any?>) {
+        call("POST", "/api/admin/site", body = site) { res -> res.code }
+    }
+
+    /** 数据源管理。action: add/disable/enable/delete/sort/batch*。 */
+    suspend fun adminSource(
+        action: String,
+        key: String? = null,
+        name: String? = null,
+        api: String? = null,
+        detail: String? = null,
+    ) {
+        val body = mutableMapOf<String, Any?>("action" to action)
+        key?.let { body["key"] = it }
+        name?.let { body["name"] = it }
+        api?.let { body["api"] = it }
+        detail?.let { body["detail"] = it }
+        call("POST", "/api/admin/source", body = body) { res -> res.code }
+    }
+
+    /** 自定义分类管理。action: add/disable/enable/delete/sort。 */
+    suspend fun adminCategory(
+        action: String,
+        name: String? = null,
+        type: String? = null,
+        query: String? = null,
+    ) {
+        val body = mutableMapOf<String, Any?>("action" to action)
+        name?.let { body["name"] = it }
+        type?.let { body["type"] = it }
+        query?.let { body["query"] = it }
+        call("POST", "/api/admin/category", body = body) { res -> res.code }
+    }
+
+    /** 用户管理。action: setAllowRegister/add/ban/unban/setAdmin/cancelAdmin/changePassword/deleteUser。 */
+    suspend fun adminUser(
+        action: String,
+        targetUsername: String? = null,
+        targetPassword: String? = null,
+        allowRegister: Boolean? = null,
+    ) {
+        val body = mutableMapOf<String, Any?>("action" to action)
+        targetUsername?.let { body["targetUsername"] = it }
+        targetPassword?.let { body["targetPassword"] = it }
+        allowRegister?.let { body["allowRegister"] = it }
+        call("POST", "/api/admin/user", body = body) { res -> res.code }
+    }
 }

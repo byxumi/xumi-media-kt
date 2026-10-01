@@ -46,6 +46,7 @@ import com.xumitech.tv.AuthState
 fun ProfileScreen(
     appState: AppState,
     onLogout: () -> Unit,
+    onOpenAdmin: () -> Unit = {},
 ) {
     val username = (appState.authState as? AuthState.LoggedIn)?.username ?: ""
     val isAdmin = (appState.authState as? AuthState.LoggedIn)?.isAdmin ?: false
@@ -139,7 +140,7 @@ fun ProfileScreen(
                     icon = Icons.Rounded.AdminPanelSettings,
                     title = "管理后台",
                     subtitle = "站点配置",
-                    onClick = {},
+                    onClick = onOpenAdmin,
                 )
             }
             SettingsItem(

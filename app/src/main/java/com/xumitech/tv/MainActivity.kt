@@ -92,6 +92,7 @@ private fun MainScaffold(
     // 历史续播：携带初始集 + 断点秒数
     var resumeRequest by remember { mutableStateOf<Triple<DoubanItem, Int, Long>?>(null) }
     var discoverOpen by remember { mutableStateOf(false) }
+    var adminOpen by remember { mutableStateOf(false) }
 
     val tabs = listOf(
         NavTab("首页", Icons.Rounded.Home, Icons.Rounded.Home),
@@ -126,7 +127,11 @@ private fun MainScaffold(
                         resumeRequest = Triple(item, ep, sec)
                     },
                 )
-                3 -> ProfileScreen(appState, onLogout)
+                3 -> ProfileScreen(
+                    appState,
+                    onLogout,
+                    onOpenAdmin = { adminOpen = true },
+                )
             }
         }
     }
@@ -152,6 +157,13 @@ private fun MainScaffold(
                 discoverOpen = false
                 openItem = it
             },
+        )
+    }
+
+    // 管理后台（全屏覆盖，仅管理员）
+    if (adminOpen) {
+        com.xumitech.tv.ui.screens.AdminScreen(
+            onClose = { adminOpen = false },
         )
     }
 
