@@ -111,6 +111,7 @@ class AppState(private val store: AuthStore) : ViewModel() {
                     onResult("登录失败：未获取到会话")
                     return@launch
                 }
+                store.server = server.trim().trimEnd('/')
                 store.saveAuth(cookie, username)
                 refreshAuthFromApi()
                 refreshBase()
@@ -130,6 +131,7 @@ class AppState(private val store: AuthStore) : ViewModel() {
                     onResult("注册失败：未获取到会话")
                     return@launch
                 }
+                store.server = server.trim().trimEnd('/')
                 store.saveAuth(cookie, username)
                 refreshAuthFromApi()
                 refreshBase()

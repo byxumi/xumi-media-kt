@@ -72,6 +72,7 @@ fun LoginScreen(
     var server by remember { mutableStateOf(MoonTvApi.DEFAULT_SERVER) }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
     var isRegister by remember { mutableStateOf(false) }
     var showPassword by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
@@ -262,6 +263,21 @@ fun LoginScreen(
                     shape = RoundedCornerShape(14.dp),
                     colors = loginFieldColors(),
                 )
+                if (isRegister) {
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = confirmPassword,
+                        onValueChange = { confirmPassword = it },
+                        label = { Text("确认密码") },
+                        singleLine = true,
+                        visualTransformation = if (showPassword) VisualTransformation.None
+                        else PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = loginFieldColors(),
+                    )
+                }
 
                 if (error != null) {
                     Spacer(Modifier.height(10.dp))
@@ -299,19 +315,38 @@ fun LoginScreen(
                             indication = null,
                             enabled = !loading,
                         ) {
-                            if (server.isBlank() || username.isBlank() || password.isBlank()) {
+                            val serverTrimmed = server.trim()
+                            if (serverTrimmed.isBlank()) {
+                                error = "请填写服务器地址"
+                                return@clickable
+                            }
+                            if (!serverTrimmed.startsWith("http://") && !serverTrimmed.startsWith("https://")) {
+                                error = "服务器地址需以 http:// 或 https:// 开头"
+                                return@clickable
+                            }
+                            if (username.isBlank() || password.isBlank()) {
                                 error = "请填写完整信息"
                                 return@clickable
+                            }
+                            if (isRegister) {
+                                if (password.length < 6) {
+                                    error = "密码至少 6 位"
+                                    return@clickable
+                                }
+                                if (password != confirmPassword) {
+                                    error = "两次输入的密码不一致"
+                                    return@clickable
+                                }
                             }
                             loading = true
                             error = null
                             if (isRegister) {
-                                appState.register(server, username, password) { e ->
+                                appState.register(serverTrimmed, username.trim(), password) { e ->
                                     loading = false
                                     if (e == null) onLoggedIn() else error = e
                                 }
                             } else {
-                                appState.login(server, username, password) { e ->
+                                appState.login(serverTrimmed, username.trim(), password) { e ->
                                     loading = false
                                     if (e == null) onLoggedIn() else error = e
                                 }
@@ -352,6 +387,7 @@ fun LoginScreen(
                     onClick = {
                         isRegister = !isRegister
                         error = null
+                        confirmPassword = ""
                     },
                     modifier = Modifier.align(Alignment.CenterHorizontally),
                 ) {

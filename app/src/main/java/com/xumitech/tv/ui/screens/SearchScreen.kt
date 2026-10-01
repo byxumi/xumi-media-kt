@@ -76,15 +76,27 @@ fun SearchScreen(
     var suggestions by remember { mutableStateOf<List<String>>(emptyList()) }
     val history = appState.searchHistory
     var searched by remember { mutableStateOf(false) }
+    var searchedQuery by remember { mutableStateOf("") }
 
-    // 输入防抖联想
+    // 输入防抖联想（修改关键词后重新出联想；搜索完成且关键词未变时不上联想）
     LaunchedEffect(query) {
-        if (query.isBlank() || searched) {
+        if (query.isBlank() || (searched && query == searchedQuery)) {
             suggestions = emptyList()
             return@LaunchedEffect
         }
         delay(300)
         suggestions = MoonTvApi.searchSuggestions(query)
+    }
+
+    fun runSearch(q: String) {
+        searchedQuery = q
+        doSearch(appState, q) {
+            searching = it.first
+            groups = it.second
+            error = it.third
+            searched = true
+            appState.addSearchHistory(q)
+        }
     }
 
     Column(Modifier.fillMaxSize()) {
@@ -132,13 +144,7 @@ fun SearchScreen(
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier
                     .clickable {
-                        if (query.isNotBlank()) doSearch(appState, query) {
-                            searching = it.first
-                            groups = it.second
-                            error = it.third
-                            searched = true
-                            appState.addSearchHistory(query)
-                        }
+                        if (query.isNotBlank()) runSearch(query)
                     }
                     .padding(8.dp),
             )
@@ -152,14 +158,44 @@ fun SearchScreen(
             error != null -> EmptyState(
                 text = error!!,
                 onRetry = {
-                    if (query.isNotBlank()) doSearch(appState, query) {
-                        searching = it.first
-                        groups = it.second
-                        error = it.third
-                        searched = true
-                    }
+                    if (query.isNotBlank()) runSearch(query)
                 },
             )
+
+            // 联想优先：搜索后修改关键词时展示新联想，而不是旧的搜索结果
+            query.isNotBlank() && suggestions.isNotEmpty() && query != searchedQuery -> {
+                LazyColumn(Modifier.fillMaxSize()) {
+                    item {
+                        Text(
+                            "搜索建议",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
+                    }
+                    items(suggestions) { s ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    query = s
+                                    runSearch(s)
+                                }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                Icons.Rounded.Search,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text(s, fontSize = 14.sp)
+                        }
+                    }
+                }
+            }
 
             groups.isNotEmpty() -> {
                 // 搜索结果
@@ -182,8 +218,8 @@ fun SearchScreen(
                 }
             }
 
-            query.isNotBlank() && suggestions.isNotEmpty() -> {
-                // 联想建议
+            // 联想建议（初始输入阶段：此时无搜索结果）
+            query.isNotBlank() && suggestions.isNotEmpty() && groups.isEmpty() -> {
                 LazyColumn(Modifier.fillMaxSize()) {
                     item {
                         Text(
@@ -199,13 +235,7 @@ fun SearchScreen(
                                 .fillMaxWidth()
                                 .clickable {
                                     query = s
-                                    doSearch(appState, s) {
-                                        searching = it.first
-                                        groups = it.second
-                                        error = it.third
-                                        searched = true
-                                        appState.addSearchHistory(s)
-                                    }
+                                    runSearch(s)
                                 }
                                 .padding(horizontal = 16.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -250,13 +280,7 @@ fun SearchScreen(
                                     .fillMaxWidth()
                                     .clickable {
                                         query = h
-                                        doSearch(appState, h) {
-                                            searching = it.first
-                                            groups = it.second
-                                            error = it.third
-                                            searched = true
-                                            appState.addSearchHistory(h)
-                                        }
+                                        runSearch(h)
                                     }
                                     .padding(horizontal = 16.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically,

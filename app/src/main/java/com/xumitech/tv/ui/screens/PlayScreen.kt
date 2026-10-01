@@ -55,6 +55,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -136,6 +137,10 @@ fun PlayScreen(
 
     val currentSource = sources.getOrNull(selectedSourceIdx) ?: sources.first()
     val episodeUrl = currentSource.episodes.getOrNull(selectedEpisode)
+
+    // 闭包/协程里需要读取最新值（DisposableEffect/LaunchedEffect 只捕获首次组合的局部变量）
+    val currentSourceState = rememberUpdatedState(currentSource)
+    val selectedEpisodeState = rememberUpdatedState(selectedEpisode)
 
     /** 当前源的防盗链 Referer（Source.referer：detail 优先，其次 api host）。 */
     fun refererOf(src: SearchResult): String =
@@ -232,8 +237,8 @@ fun PlayScreen(
         }
         player = exo
         onDispose {
-            // 退出前保存进度
-            saveProgress(exo, currentSource, selectedEpisode, appState)
+            // 退出前保存进度（用最新源/集数，避免切源后存错 key）
+            saveProgress(exo, currentSourceState.value, selectedEpisodeState.value, appState)
             exo.release()
             player = null
             // 离开页面时还原系统栏 / 方向（若在全屏中）
@@ -278,8 +283,10 @@ fun PlayScreen(
 
             override fun onPlaybackStateChanged(state: Int) {
                 if (state == Player.STATE_ENDED && p.repeatMode == Player.REPEAT_MODE_OFF) {
-                    // 自动连播下一集
-                    if (selectedEpisode + 1 < currentSource.episodes.size) {
+                    // 自动连播下一集（用最新的源与集数判断，避免旧值越界/错源）
+                    val src = currentSourceState.value
+                    val ep = selectedEpisodeState.value
+                    if (ep + 1 < src.episodes.size) {
                         selectedEpisode += 1
                     }
                 }
@@ -291,7 +298,7 @@ fun PlayScreen(
             val pos = p.currentPosition
             val dur = p.duration
             if (dur <= 0 || pos < 1000) continue
-            saveProgress(p, currentSource, selectedEpisode, appState)
+            saveProgress(p, currentSourceState.value, selectedEpisodeState.value, appState)
         }
     }
 

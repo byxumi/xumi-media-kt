@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xumitech.tv.AppState
 import com.xumitech.tv.AuthState
+import com.xumitech.tv.BuildConfig
 
 /** 我的页：用户信息 + 设置入口。 */
 @Composable
@@ -146,7 +147,7 @@ fun ProfileScreen(
             SettingsItem(
                 icon = Icons.Rounded.Info,
                 title = "关于",
-                subtitle = "须弥Media v2.2.0",
+                subtitle = "须弥Media v${BuildConfig.VERSION_NAME}",
                 onClick = {},
             )
             SettingsItem(

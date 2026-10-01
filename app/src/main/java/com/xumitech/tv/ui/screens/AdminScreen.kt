@@ -176,9 +176,9 @@ fun AdminScreen(
                 }
                 adminJson != null -> when (tab) {
                     0 -> SiteTab(adminJson!!, onSaved = { scope.launch { reload() } })
-                    1 -> SourceTab(adminJson!!)
-                    2 -> UserTab(adminJson!!)
-                    else -> CategoryTab(adminJson!!)
+                    1 -> SourceTab(adminJson!!, onChanged = { scope.launch { reload() } })
+                    2 -> UserTab(adminJson!!, onChanged = { scope.launch { reload() } })
+                    else -> CategoryTab(adminJson!!, onChanged = { scope.launch { reload() } })
                 }
             }
         }
@@ -317,7 +317,7 @@ private fun SiteTab(json: JsonObject, onSaved: () -> Unit) {
 
 // ---------------- 数据源 ----------------
 @Composable
-private fun SourceTab(json: JsonObject) {
+private fun SourceTab(json: JsonObject, onChanged: () -> Unit) {
     val sources = remember(json) { json.config().objList("SourceConfig") }
     val scope = rememberCoroutineScope()
     var showAdd by remember { mutableStateOf(false) }
@@ -381,6 +381,7 @@ private fun SourceTab(json: JsonObject) {
                             try {
                                 MoonTvApi.adminSource(if (disabled) "enable" else "disable", key = src.s("key"))
                                 msg = if (disabled) "✅ 已启用 ${src.s("name")}" else "✅ 已停用 ${src.s("name")}"
+                                onChanged()
                             } catch (e: Exception) { msg = "❌ ${e.message}" }
                         }
                     }) {
@@ -396,6 +397,7 @@ private fun SourceTab(json: JsonObject) {
                             try {
                                 MoonTvApi.adminSource("delete", key = src.s("key"))
                                 msg = "✅ 已删除 ${src.s("name")}"
+                                onChanged()
                             } catch (e: Exception) { msg = "❌ ${e.message}" }
                         }
                     }) {
@@ -415,6 +417,7 @@ private fun SourceTab(json: JsonObject) {
                         MoonTvApi.adminSource("add", key = key, name = name, api = api, detail = detail)
                         msg = "✅ 已添加 $name"
                         showAdd = false
+                        onChanged()
                     } catch (e: Exception) { msg = "❌ ${e.message}" }
                 }
             },
@@ -432,6 +435,7 @@ private fun AddSourceDialog(
     var name by remember { mutableStateOf("") }
     var api by remember { mutableStateOf("") }
     var detail by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("添加数据源") },
@@ -444,12 +448,24 @@ private fun AddSourceDialog(
                 OutlinedTextField(value = api, onValueChange = { api = it }, label = { Text("API 地址") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp))
                 Spacer(Modifier.height(6.dp))
                 OutlinedTextField(value = detail, onValueChange = { detail = it }, label = { Text("详情地址(可选)") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp))
+                if (error != null) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(error!!, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                }
             }
         },
         confirmButton = {
-            TextButton(onClick = { if (key.isNotBlank() && name.isNotBlank() && api.isNotBlank()) onConfirm(key.trim(), name.trim(), api.trim(), detail.trim()) }) {
-                Text("添加", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-            }
+            TextButton(onClick = {
+                when {
+                    key.isBlank() -> error = "请填写 key（唯一标识）"
+                    name.isBlank() -> error = "请填写名称"
+                    api.isBlank() -> error = "请填写 API 地址"
+                    else -> {
+                        error = null
+                        onConfirm(key.trim(), name.trim(), api.trim(), detail.trim())
+                    }
+                }
+            }) { Text("添加", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
     )
@@ -457,7 +473,7 @@ private fun AddSourceDialog(
 
 // ---------------- 用户管理 ----------------
 @Composable
-private fun UserTab(json: JsonObject) {
+private fun UserTab(json: JsonObject, onChanged: () -> Unit) {
     val users = remember(json) { json.userCfg().objList("Users") }
     val scope = rememberCoroutineScope()
     var msg by remember { mutableStateOf<String?>(null) }
@@ -512,6 +528,7 @@ private fun UserTab(json: JsonObject) {
                                     try {
                                         MoonTvApi.adminUser("cancelAdmin", targetUsername = u.s("username"))
                                         msg = "✅ 已取消 ${u.s("username")} 管理员"
+                                        onChanged()
                                     } catch (e: Exception) { msg = "❌ ${e.message}" }
                                 }
                             }) { Text("取消管理", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f), fontSize = 12.sp) }
@@ -521,6 +538,7 @@ private fun UserTab(json: JsonObject) {
                                     try {
                                         MoonTvApi.adminUser("setAdmin", targetUsername = u.s("username"))
                                         msg = "✅ 已设为管理员 ${u.s("username")}"
+                                        onChanged()
                                     } catch (e: Exception) { msg = "❌ ${e.message}" }
                                 }
                             }) { Text("设为管理", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp) }
@@ -531,6 +549,7 @@ private fun UserTab(json: JsonObject) {
                                     try {
                                         MoonTvApi.adminUser("unban", targetUsername = u.s("username"))
                                         msg = "✅ 已解封 ${u.s("username")}"
+                                        onChanged()
                                     } catch (e: Exception) { msg = "❌ ${e.message}" }
                                 }
                             }) { Icon(Icons.Rounded.CheckCircle, contentDescription = "解封", tint = Green, modifier = Modifier.size(18.dp)) }
@@ -540,6 +559,7 @@ private fun UserTab(json: JsonObject) {
                                     try {
                                         MoonTvApi.adminUser("ban", targetUsername = u.s("username"))
                                         msg = "✅ 已封禁 ${u.s("username")}"
+                                        onChanged()
                                     } catch (e: Exception) { msg = "❌ ${e.message}" }
                                 }
                             }) { Icon(Icons.Rounded.Block, contentDescription = "封禁", tint = Danger, modifier = Modifier.size(18.dp)) }
@@ -549,6 +569,7 @@ private fun UserTab(json: JsonObject) {
                                 try {
                                     MoonTvApi.adminUser("deleteUser", targetUsername = u.s("username"))
                                     msg = "✅ 已删除用户 ${u.s("username")}"
+                                    onChanged()
                                 } catch (e: Exception) { msg = "❌ ${e.message}" }
                             }
                         }) { Icon(Icons.Rounded.Delete, contentDescription = "删除", tint = Danger, modifier = Modifier.size(18.dp)) }
@@ -562,7 +583,7 @@ private fun UserTab(json: JsonObject) {
 
 // ---------------- 自定义分类 ----------------
 @Composable
-private fun CategoryTab(json: JsonObject) {
+private fun CategoryTab(json: JsonObject, onChanged: () -> Unit) {
     val cats = remember(json) { json.config().objList("CustomCategories") }
     val scope = rememberCoroutineScope()
     var showAdd by remember { mutableStateOf(false) }
@@ -617,6 +638,7 @@ private fun CategoryTab(json: JsonObject) {
                             try {
                                 MoonTvApi.adminCategory("delete", name = c.s("name"))
                                 msg = "✅ 已删除 ${c.s("name")}"
+                                onChanged()
                             } catch (e: Exception) { msg = "❌ ${e.message}" }
                         }
                     }) { Icon(Icons.Rounded.Delete, contentDescription = "删除", tint = Danger, modifier = Modifier.size(18.dp)) }
@@ -634,6 +656,7 @@ private fun CategoryTab(json: JsonObject) {
                 var name by remember { mutableStateOf("") }
                 var type by remember { mutableStateOf("movie") }
                 var query by remember { mutableStateOf("") }
+                var error by remember { mutableStateOf<String?>(null) }
                 Column {
                     OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("分类名") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp))
                     Spacer(Modifier.height(6.dp))
@@ -656,16 +679,26 @@ private fun CategoryTab(json: JsonObject) {
                     }
                     Spacer(Modifier.height(6.dp))
                     OutlinedTextField(value = query, onValueChange = { query = it }, label = { Text("搜索关键词") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp))
+                    if (error != null) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(error!!, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                    }
                     Spacer(Modifier.height(6.dp))
                     TextButton(
                         onClick = {
-                            if (name.isNotBlank() && query.isNotBlank()) {
-                                scope.launch {
-                                    try {
-                                        MoonTvApi.adminCategory("add", name = name.trim(), type = type, query = query.trim())
-                                        msg = "✅ 已添加 $name"
-                                        showAdd = false
-                                    } catch (e: Exception) { msg = "❌ ${e.message}" }
+                            when {
+                                name.isBlank() -> error = "请填写分类名"
+                                query.isBlank() -> error = "请填写搜索关键词"
+                                else -> {
+                                    error = null
+                                    scope.launch {
+                                        try {
+                                            MoonTvApi.adminCategory("add", name = name.trim(), type = type, query = query.trim())
+                                            msg = "✅ 已添加 $name"
+                                            showAdd = false
+                                            onChanged()
+                                        } catch (e: Exception) { msg = "❌ ${e.message}" }
+                                    }
                                 }
                             }
                         },
