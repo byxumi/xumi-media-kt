@@ -16,18 +16,19 @@ import androidx.compose.ui.unit.sp
 
 // ================= 品牌 Token(单一 accent:琥珀金 + 深蓝影院黑) =================
 
-/** 交互/主色 —— 全应用唯一 accent。 */
-val Accent = Color(0xFFE0A458)          // 琥珀金
-val AccentDark = Color(0xFFC98A3E)
-val AccentContainer = Color(0xFF3A2F1E)
-val OnAccent = Color(0xFF1A140E)
+/** 交互/主色 —— 全应用唯一 accent(品牌紫罗兰,青蓝为叙事点缀)。 */
+val Accent = Color(0xFF6C5CE7)          // 品牌紫(深色底主色)
+val AccentBright = Color(0xFF8B7CF8)    // 亮紫(同族渐变高光)
+val AccentDark = Color(0xFF5A4BD6)      // 浅色模式主色
+val AccentContainer = Color(0xFF2E2A52) // 深色容器(紫调)
+val OnAccent = Color(0xFFFFFFFF)
 
-/** 深色影院底。 */
-val CinemaBlack = Color(0xFF08090C)
-val CinemaSurface = Color(0xFF101218)
-val CinemaSurfaceHi = Color(0xFF181B23)
-val CinemaOutline = Color(0xFF262A33)
-val CinemaOutlineHi = Color(0xFF333845)
+/** 深色影院底(带紫蓝倾向,与 accent 协调)。 */
+val CinemaBlack = Color(0xFF0A0B12)
+val CinemaSurface = Color(0xFF12141D)
+val CinemaSurfaceHi = Color(0xFF1A1D29)
+val CinemaOutline = Color(0xFF262A38)
+val CinemaOutlineHi = Color(0xFF343950)
 
 /** 浅色模式底。 */
 val Paper = Color(0xFFF5F3EE)
@@ -48,7 +49,7 @@ private val DarkColors = darkColorScheme(
     primary = Accent,
     onPrimary = OnAccent,
     primaryContainer = AccentContainer,
-    onPrimaryContainer = Color(0xFFFFE3B3),
+    onPrimaryContainer = Color(0xFFDCD7FF),
     secondary = AccentDark,
     onSecondary = OnAccent,
     background = CinemaBlack,
@@ -56,7 +57,7 @@ private val DarkColors = darkColorScheme(
     surface = CinemaSurface,
     onSurface = Color(0xFFE9EAEE),
     surfaceVariant = CinemaSurfaceHi,
-    onSurfaceVariant = Color(0xFF9AA0AC),
+    onSurfaceVariant = Color(0xFFA0A4B4),
     surfaceContainerHighest = CinemaSurfaceHi,
     surfaceContainerHigh = CinemaSurfaceHi,
     surfaceContainer = CinemaSurface,
@@ -73,8 +74,8 @@ private val DarkColors = darkColorScheme(
 private val LightColors = lightColorScheme(
     primary = AccentDark,
     onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFF4E3C8),
-    onPrimaryContainer = Color(0xFF3A2A12),
+    primaryContainer = Color(0xFFE5E1FF),
+    onPrimaryContainer = Color(0xFF221B55),
     secondary = AccentDark,
     onSecondary = Color(0xFFFFFFFF),
     background = Paper,

@@ -86,7 +86,7 @@ fun LoginScreen(vm: AppViewModel, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Color(0xFF0B0C12), Color(0xFF13101A), Color(0xFF08090C)))),
+            .background(Brush.verticalGradient(listOf(Color(0xFF0B0C14), Color(0xFF141222), Color(0xFF08090C)))),
     ) {
         // 品牌氛围光晕
         Box(
@@ -157,7 +157,7 @@ fun LoginScreen(vm: AppViewModel, modifier: Modifier = Modifier) {
                     .clip(ShapeLg)
                     .background(
                         if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
-                            Color(0xFF14161F).copy(alpha = 0.86f)
+                            Color(0xFF131522).copy(alpha = 0.86f)
                         } else {
                             Color.White.copy(alpha = 0.9f)
                         },
@@ -243,7 +243,7 @@ fun LoginScreen(vm: AppViewModel, modifier: Modifier = Modifier) {
             }
             Spacer(Modifier.height(28.dp))
             Text(
-                "v3.0 · Dark Cinema",
+                "v3.0.1 · Dark Cinema",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.outline,
             )

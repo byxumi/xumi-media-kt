@@ -86,7 +86,7 @@ import com.xumitech.tv.data.VideoGroup
 import com.xumitech.tv.ui.state.AppUiState
 import com.xumitech.tv.ui.state.AppViewModel
 import com.xumitech.tv.ui.theme.Accent
-import com.xumitech.tv.ui.theme.BrandSky
+import com.xumitech.tv.ui.theme.AccentBright
 import com.xumitech.tv.ui.theme.CinemaBlack
 import com.xumitech.tv.ui.theme.Success
 import kotlinx.coroutines.async
@@ -206,7 +206,7 @@ fun PlayScreen(
     LaunchedEffect(currentSource, selectedEpisode) {
         val p = player ?: return@LaunchedEffect
         val url = episodeUrl ?: return@LaunchedEffect
-        val src = currentSource ?: return@LaunchedEffect
+        val src = currentSource
         statusText = "加载 ${src.sourceName}…"
         try {
             val factory = MoonTvApiHttpDataSource.factory(context, refererOf(src))
@@ -595,7 +595,7 @@ fun PlayScreen(
                                     Brush.linearGradient(
                                         listOf(
                                             MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
-                                            BrandSky.copy(alpha = 0.75f),
+                                            AccentBright.copy(alpha = 0.75f),
                                         ),
                                     ),
                                     RoundedCornerShape(12.dp),
@@ -772,7 +772,7 @@ private fun SpeedTestOverlay(
                         Brush.horizontalGradient(
                             listOf(
                                 MaterialTheme.colorScheme.primary,
-                                BrandSky,
+                                AccentBright,
                             ),
                         ),
                         RoundedCornerShape(2.dp),

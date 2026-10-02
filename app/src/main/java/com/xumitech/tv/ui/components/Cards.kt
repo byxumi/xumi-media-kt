@@ -48,6 +48,7 @@ import com.xumitech.tv.data.Following
 import com.xumitech.tv.data.PlayRecord
 import com.xumitech.tv.data.TodayUpdatedItem
 import com.xumitech.tv.ui.theme.Accent
+import com.xumitech.tv.ui.theme.AccentBright
 import com.xumitech.tv.ui.theme.Danger
 import com.xumitech.tv.ui.theme.ShapeMd
 import com.xumitech.tv.ui.theme.ShapeXs
@@ -126,7 +127,7 @@ fun PosterTile(
                         rate,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFFFFC53D),
+                        color = Accent,
                     )
                 }
             }
@@ -230,7 +231,7 @@ fun ContinueWatchingCard(
                         .height(3.dp)
                         .background(
                             Brush.horizontalGradient(
-                                listOf(MaterialTheme.colorScheme.primary, Color(0xFF0EA5E9)),
+                                listOf(MaterialTheme.colorScheme.primary, AccentBright),
                             ),
                         ),
                 )

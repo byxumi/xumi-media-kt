@@ -77,9 +77,11 @@ object MoonApi {
         }
         val resp = client.newCall(builder.build()).execute()
         val bodyText = resp.body?.string() ?: ""
-        if (withCookie) {
-            resp.headers["Set-Cookie"]?.let { setCookie ->
-                val m = Regex("auth=([^;]+)").find(setCookie)
+        // 捕获认证 cookie:登录/注册时 withCookie=false(不携带旧 cookie),
+        // 因此 Set-Cookie 捕获必须在 withCookie 判断之外,否则登录后永远拿不到 auth cookie
+        runCatching {
+            resp.headers("Set-Cookie").forEach { raw ->
+                val m = Regex("auth=([^;]+)").find(raw)
                 if (m != null) {
                     authCookie = "auth=${m.groupValues[1]}"
                     onAuthChanged?.invoke()

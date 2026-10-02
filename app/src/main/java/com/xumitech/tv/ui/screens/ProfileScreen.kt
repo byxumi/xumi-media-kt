@@ -45,6 +45,7 @@ import com.xumitech.tv.ui.state.AppUiState
 import com.xumitech.tv.ui.state.AppViewModel
 import com.xumitech.tv.ui.state.AuthState
 import com.xumitech.tv.ui.theme.Accent
+import com.xumitech.tv.ui.theme.AccentDark
 import com.xumitech.tv.ui.theme.ShapeLg
 
 /** 我的页:用户卡 + 设置入口。 */
@@ -85,7 +86,7 @@ fun ProfileScreen(
             Box(
                 Modifier
                     .size(56.dp)
-                    .background(Brush.linearGradient(listOf(Accent, Color(0xFF8A6A3B))), CircleShape),
+                    .background(Brush.linearGradient(listOf(Accent, AccentDark)), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(

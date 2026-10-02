@@ -209,8 +209,8 @@ fun GlassCard(
     content: @Composable () -> Unit,
 ) {
     val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val base = if (dark) Color(0xFF2A2D3A) else Color(0xFFFFFFFF)
-    val overlay = if (dark) Color(0xFF14161F) else Color(0xFFF7F8FC)
+    val base = if (dark) Color(0xFF1A1D29) else Color(0xFFFFFFFF)
+    val overlay = if (dark) Color(0xFF12141D) else Color(0xFFF7F8FC)
     Surface(
         modifier = modifier,
         shape = androidx.compose.foundation.shape.RoundedCornerShape(cornerRadius),
@@ -237,7 +237,7 @@ fun ShimmerBox(
     cornerRadius: androidx.compose.ui.unit.Dp = 10.dp,
 ) {
     val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val base = if (dark) Color(0xFF2A2D3A) else Color(0xFFE3E0DA)
+    val base = if (dark) Color(0xFF1A1D29) else Color(0xFFE3E0DA)
     Box(
         modifier
             .clip(androidx.compose.foundation.shape.RoundedCornerShape(cornerRadius))
