@@ -2,6 +2,7 @@ package com.xumitech.tv
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -116,6 +117,11 @@ private fun LoggedInRoot(vm: AppViewModel, ui: AppUiState) {
     }
 
     val closeOverlay: () -> Unit = { overlay = Overlay.None }
+
+    // 覆盖层兜底:系统返回关闭覆盖层(而非退出 App);PlayScreen 自带 BackHandler 会优先接管
+    BackHandler(enabled = overlay !is Overlay.None && overlay !is Overlay.Play) {
+        closeOverlay()
+    }
 
     Box {
         MainScaffold(

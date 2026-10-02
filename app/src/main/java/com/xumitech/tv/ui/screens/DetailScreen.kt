@@ -74,12 +74,18 @@ fun DetailScreen(
     }
 
     val group = ui.detailGroups.firstOrNull()
-    var sourceIdx by remember { mutableIntStateOf(0) }
-    var episodeIdx by remember { mutableIntStateOf(0) }
+    var sourceIdx by remember(target.id, target.source) { mutableIntStateOf(0) }
+    var episodeIdx by remember(target.id, target.source) { mutableIntStateOf(0) }
 
     when {
-        ui.detailLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            androidx.compose.material3.CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+        ui.detailLoading -> Box(Modifier.fillMaxSize()) {
+            androidx.compose.material3.CircularProgressIndicator(
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.align(Alignment.Center),
+            )
+            IconButton(onClick = onClose, modifier = Modifier.padding(8.dp)) {
+                Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回")
+            }
         }
         ui.detailError != null && group == null -> Box(Modifier.fillMaxSize()) {
             SimpleError(
@@ -106,7 +112,7 @@ fun DetailScreen(
             episodeIdx = episodeIdx,
             onSourceSelect = { sourceIdx = it; episodeIdx = 0 },
             onEpisodeSelect = { episodeIdx = it },
-            onPlay = { s, e -> onOpenPlay(group, s, e, 0L) },
+            onPlay = { s, e, st -> onOpenPlay(group, s, e, st) },
             onClose = onClose,
         )
     }
@@ -121,7 +127,7 @@ private fun DetailContent(
     episodeIdx: Int,
     onSourceSelect: (Int) -> Unit,
     onEpisodeSelect: (Int) -> Unit,
-    onPlay: (Int, Int) -> Unit,
+    onPlay: (Int, Int, Long) -> Unit,
     onClose: () -> Unit,
 ) {
     val sources = group.sources
@@ -130,6 +136,9 @@ private fun DetailContent(
     val episodesTitles = current?.episodesTitles ?: emptyList()
     val isFav = current != null && vm.isFavorite(current)
     val isFollowing = current != null && vm.isFollowing(current)
+    // 续播:当前源的播放记录(选择集/秒数)
+    val resumeRecord = current?.let { ui.playRecords[it.key] }
+    val resumeStartSec = resumeRecord?.let { if (it.totalTime > 0) it.playTime.toLong() else 0L } ?: 0L
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
@@ -200,7 +209,14 @@ private fun DetailContent(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Button(
-                    onClick = { if (current != null) onPlay(sourceIdx, episodeIdx) },
+                    onClick = {
+                        if (current != null) {
+                            val rec = ui.playRecords[current.key]
+                            val ep = rec?.takeIf { it.index > 0 && it.index <= episodes.size }?.index?.minus(1)
+                                ?: episodeIdx
+                            onPlay(sourceIdx, ep, resumeStartSec)
+                        }
+                    },
                     modifier = Modifier.weight(1f).height(48.dp),
                     shape = ShapeMd,
                     colors = ButtonDefaults.buttonColors(

@@ -93,7 +93,7 @@ fun HomeScreen(
             ui.homeSections.isEmpty() && ui.todayUpdated == null && ui.playRecords.isEmpty() && ui.followings.isEmpty() ->
                 SimpleEmpty(
                     text = "还没有内容",
-                    subtitle = "下拉刷新或去发现页逛逛",
+                    subtitle = "去发现页逛逛,聚合全网影视源",
                     actionLabel = "去发现",
                     onAction = onOpenDiscover,
                     modifier = Modifier.fillMaxSize(),

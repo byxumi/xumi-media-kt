@@ -456,7 +456,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // ---------------- 详情 ----------------
     fun loadDetail(itemId: String, source: String, onDone: (List<VideoGroup>?, String?) -> Unit = { _, _ -> }) {
         viewModelScope.launch {
-            _ui.update { it.copy(detailLoading = true, detailError = null) }
+            _ui.update { it.copy(detailLoading = true, detailError = null, detailGroups = emptyList()) }
             try {
                 val detail = MoonApi.detail(itemId, source)
                 val groups = VideoGroup.group(listOf(detail))
@@ -479,7 +479,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // ---------------- 发现 ----------------
     fun loadDiscover(kind: String = "movie", category: String = "", type: String = "") {
         viewModelScope.launch {
-            _ui.update { it.copy(discoverLoading = true, discoverError = null) }
+            _ui.update { it.copy(discoverLoading = true, discoverError = null, discoverItems = emptyList()) }
             try {
                 val items = MoonApi.getDoubanCategories(kind, category, type, limit = 30)
                 _ui.update { it.copy(discoverLoading = false, discoverItems = items) }

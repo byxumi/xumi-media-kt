@@ -153,7 +153,7 @@ fun AdminScreen(onClose: () -> Unit) {
             error != null -> SimpleError(error ?: "加载失败", onRetry = { reload() })
             adminJson == null -> SimpleEmpty("暂无数据", actionLabel = "刷新", onAction = { reload() })
             else -> when (tab) {
-                0 -> SiteTab(adminJson!!, onSaved = { msg = "保存成功" }, scope = scope)
+                0 -> SiteTab(adminJson!!, onSaved = { msg = "操作成功" }, scope = scope)
                 1 -> SourceTab(adminJson!!) { adminRun(it) }
                 2 -> UserTab(adminJson!!) { adminRun(it) }
                 else -> CategoryTab(adminJson!!) { adminRun(it) }
@@ -253,7 +253,7 @@ private fun SiteTab(json: JsonObject, onSaved: (String) -> Unit, scope: kotlinx.
                                 ),
                             )
                             MoonApi.adminUser("setAllowRegister", allowRegister = allowRegister)
-                            onSaved("保存成功")
+                            onSaved("操作成功")
                         } catch (e: Exception) {
                             onSaved(e.message ?: "保存失败")
                         }

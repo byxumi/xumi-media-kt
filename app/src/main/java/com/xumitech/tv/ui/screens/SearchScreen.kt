@@ -80,6 +80,7 @@ fun SearchScreen(
             suggestions = emptyList()
             return
         }
+        active = false  // 输入新词时回到联想/历史态,避免卡在旧结果
         debounce?.cancel()
         debounce = scope.launch {
             delay(300)

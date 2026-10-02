@@ -110,7 +110,7 @@ fun PlayScreen(
     val group = request.group
     val sources = remember(group) { group.sources }
     var selectedSourceIdx by remember { mutableIntStateOf(
-        request.sourceIndex.coerceIn(0, sources.size - 1),
+        if (sources.isEmpty()) 0 else request.sourceIndex.coerceIn(0, sources.size - 1),
     ) }
     var selectedEpisode by remember { mutableIntStateOf(request.episodeIndex) }
     var player by remember { mutableStateOf<ExoPlayer?>(null) }
@@ -307,6 +307,7 @@ fun PlayScreen(
                 val idx = sources.indexOf(best.first)
                 if (idx >= 0) {
                     selectedSourceIdx = idx
+                    selectedEpisode = 0
                     preferredSource = best.first to best.second
                     showPreferred = true
                     scope.launch {
@@ -321,9 +322,13 @@ fun PlayScreen(
         }
     }
 
-    // 全屏时:系统返回键先退出全屏
-    BackHandler(enabled = isFullscreen) {
-        exitFullscreen()
+    // 返回键:全屏先退全屏,否则关闭播放页
+    BackHandler {
+        if (isFullscreen) {
+            exitFullscreen()
+        } else {
+            onClose()
+        }
     }
 
     // ---------- 布局:视频在上、信息区在下 ----------
@@ -636,7 +641,10 @@ fun PlayScreen(
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = null,
-                                ) { selectedSourceIdx = idx }
+                                ) {
+                                    selectedSourceIdx = idx
+                                    selectedEpisode = 0
+                                }
                                 .padding(horizontal = 12.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {

@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.xumitech.tv.BuildConfig
 import com.xumitech.tv.ui.state.AppUiState
 import com.xumitech.tv.ui.state.AppViewModel
 import com.xumitech.tv.ui.state.AuthState
@@ -119,7 +120,7 @@ fun ProfileScreen(
             icon = Icons.Rounded.Info,
             title = "关于",
             subtitle = buildString {
-                append("须弥Media v3.0")
+                append("须弥Media v${BuildConfig.VERSION_NAME}")
                 if (ui.serverVersion.isNotBlank()) append(" · 服务端 ${ui.serverVersion}")
             },
             onClick = { showAbout = true },
@@ -174,7 +175,7 @@ fun ProfileScreen(
                 Column {
                     Text("须弥Media · 聚合影视客户端")
                     Spacer(Modifier.height(8.dp))
-                    Text("版本 v3.0", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("版本 v${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (ui.siteName.isNotBlank()) {
                         Spacer(Modifier.height(4.dp))
                         Text("站点 ${ui.siteName}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

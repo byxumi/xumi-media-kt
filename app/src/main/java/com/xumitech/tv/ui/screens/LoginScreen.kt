@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -42,6 +43,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.xumitech.tv.BuildConfig
 import com.xumitech.tv.ui.state.AppViewModel
 import com.xumitech.tv.ui.theme.Accent
 import com.xumitech.tv.ui.theme.BrandAqua
@@ -60,6 +62,8 @@ fun LoginScreen(vm: AppViewModel, modifier: Modifier = Modifier) {
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val server = remember { vm.ui.value.server }
+    var showServerDialog by remember { mutableStateOf(false) }
+    var tempServer by remember { mutableStateOf(server) }
 
     fun submit() {
         if (loading) return
@@ -117,6 +121,42 @@ fun LoginScreen(vm: AppViewModel, modifier: Modifier = Modifier) {
                 .blur(40.dp),
         )
 
+        if (showServerDialog) {
+            AlertDialog(
+                onDismissRequest = { showServerDialog = false },
+                title = { Text("服务器设置") },
+                text = {
+                    Column {
+                        OutlinedTextField(
+                            value = tempServer,
+                            onValueChange = { tempServer = it },
+                            singleLine = true,
+                            label = { Text("服务器地址") },
+                            placeholder = { Text("https://tv.xumitech.top") },
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "修改后将退出登录并重新加载",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val v = tempServer.trim().trimEnd('/')
+                        if (v.isNotBlank()) {
+                            vm.setServer(v)
+                            showServerDialog = false
+                        }
+                    }) { Text("保存") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showServerDialog = false }) { Text("取消") }
+                },
+            )
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -125,7 +165,14 @@ fun LoginScreen(vm: AppViewModel, modifier: Modifier = Modifier) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            Spacer(Modifier.height(48.dp))
+            Spacer(Modifier.height(28.dp))
+            TextButton(onClick = {
+                tempServer = server
+                showServerDialog = true
+            }) {
+                Text("服务器设置", color = MaterialTheme.colorScheme.outline, fontSize = 12.sp)
+            }
+            Spacer(Modifier.height(16.dp))
             // Logo
             Box(
                 Modifier
@@ -243,7 +290,7 @@ fun LoginScreen(vm: AppViewModel, modifier: Modifier = Modifier) {
             }
             Spacer(Modifier.height(28.dp))
             Text(
-                "v3.0.1 · Dark Cinema",
+                "v${BuildConfig.VERSION_NAME} · Dark Cinema",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.outline,
             )

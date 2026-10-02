@@ -36,6 +36,7 @@ fun FavoritesScreen(
     vm: AppViewModel,
     ui: AppUiState,
     modifier: Modifier = Modifier,
+    onClose: () -> Unit = {},
     onOpenDetail: (DetailTarget) -> Unit,
 ) {
     LaunchedEffect(Unit) {
@@ -49,7 +50,7 @@ fun FavoritesScreen(
                 .padding(horizontal = 8.dp, vertical = 6.dp),
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
         ) {
-            IconButton(onClick = {}) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") }
+            IconButton(onClick = onClose) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") }
             Text(
                 "我的收藏",
                 style = MaterialTheme.typography.titleLarge,

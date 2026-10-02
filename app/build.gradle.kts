@@ -12,8 +12,8 @@ android {
         applicationId = "com.xumitech.tv"
         minSdk = 24
         targetSdk = 37
-        versionCode = 3010
-        versionName = "3.0.1"
+        versionCode = 3020
+        versionName = "3.0.2"
     }
 
     signingConfigs {
