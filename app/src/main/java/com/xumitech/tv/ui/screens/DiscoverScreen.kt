@@ -1,5 +1,7 @@
 package com.xumitech.tv.ui.screens
 
+import com.xumitech.tv.DetailTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,17 +14,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.MovieFilter
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -33,245 +32,94 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.xumitech.tv.AppState
-import com.xumitech.tv.data.MoonTvApi
-import com.xumitech.tv.model.DoubanItem
-import com.xumitech.tv.ui.components.EmptyState
-import com.xumitech.tv.ui.components.GridSkeleton
+import com.xumitech.tv.data.DoubanItem
 import com.xumitech.tv.ui.components.PosterTile
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import com.xumitech.tv.ui.components.SimpleEmpty
+import com.xumitech.tv.ui.components.SimpleError
+import com.xumitech.tv.ui.state.AppUiState
+import com.xumitech.tv.ui.state.AppViewModel
 
-/** 类型 Tab。 */
-private data class KindTab(val label: String, val kind: String)
-
-private val KIND_TABS = listOf(
-    KindTab("电影", "movie"),
-    KindTab("剧集", "tv"),
-    KindTab("综艺", "show"),
-    KindTab("动漫", "anime"),
-)
-
-/** 分类 chip。 */
-private data class CategoryChip(val label: String, val category: String, val type: String)
-
-private val CATEGORY_CHIPS = listOf(
-    CategoryChip("热门", "", ""),
-    CategoryChip("最新", "最新", ""),
-    CategoryChip("高分", "高分", ""),
-    CategoryChip("华语", "热门", "华语"),
-    CategoryChip("欧美", "热门", "欧美"),
-    CategoryChip("韩国", "热门", "韩国"),
-    CategoryChip("日本", "热门", "日本"),
-    CategoryChip("动作", "热门", "动作"),
-    CategoryChip("喜剧", "热门", "喜剧"),
-    CategoryChip("爱情", "热门", "爱情"),
-    CategoryChip("科幻", "热门", "科幻"),
-    CategoryChip("悬疑", "热门", "悬疑"),
-    CategoryChip("恐怖", "热门", "恐怖"),
-)
-
-/** 分类榜单页（学 moontv douban 页）：类型Tab + 分类chips + 分页网格。 */
+/** 发现页:分类筛选 + 网格。 */
 @Composable
 fun DiscoverScreen(
-    appState: AppState,
+    vm: AppViewModel,
+    ui: AppUiState,
     onClose: () -> Unit,
-    onOpenItem: (DoubanItem) -> Unit,
+    onOpenDetail: (DetailTarget) -> Unit,
 ) {
-    var kindIdx by remember { mutableIntStateOf(0) }
-    var chipIdx by remember { mutableIntStateOf(0) }
-    var items by remember { mutableStateOf<List<DoubanItem>>(emptyList()) }
-    var loading by remember { mutableStateOf(true) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var page by remember { mutableIntStateOf(0) }
-    val gridState = rememberLazyGridState()
+    val kinds = listOf("movie" to "电影", "tv" to "剧集", "anime" to "动漫")
+    var kind by remember { mutableIntStateOf(0) }
 
-    val currentKind = KIND_TABS[kindIdx].kind
-    val currentChip = CATEGORY_CHIPS[chipIdx]
-    val scope = rememberCoroutineScope()
-
-    fun load(reset: Boolean = true, newPage: Int = 0) {
-        loading = true
-        error = null
-        scope.launch {
-            try {
-                val list = withContext(Dispatchers.IO) {
-                    MoonTvApi.getDoubanCategories(
-                        kind = currentKind,
-                        category = currentChip.category,
-                        type = currentChip.type,
-                        limit = 30,
-                        start = newPage * 30,
-                    )
-                }
-                items = if (reset) list else items + list
-                loading = false
-            } catch (e: Exception) {
-                error = e.message ?: "加载失败"
-                loading = false
-            }
-        }
+    LaunchedEffect(kind) {
+        vm.loadDiscover(kind = kinds[kind].first)
     }
 
-    LaunchedEffect(kindIdx, chipIdx) {
-        page = 0
-        load(true, 0)
-    }
-
-    // 滚动到底部自动加载更多
-    LaunchedEffect(gridState, items.size) {
-        snapshotFlow {
-            val lastVisible = gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            val total = gridState.layoutInfo.totalItemsCount
-            lastVisible >= total - 6
-        }.collect { nearEnd ->
-            if (nearEnd && !loading && items.isNotEmpty()) {
-                page += 1
-                load(false, page)
-            }
-        }
-    }
-
-    Column(Modifier.fillMaxSize()) {
-        // 顶栏
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(
-            Modifier
+            modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 6.dp),
+                .padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = onClose) {
-                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "返回")
-            }
+            IconButton(onClick = onClose) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") }
             Text(
-                "分类 · 榜单",
-                style = MaterialTheme.typography.titleMedium,
+                "发现",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
             )
         }
 
-        // 类型 Tab（统一胶囊 50）
+        // 类型 chips
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 12.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            items(KIND_TABS.size) { i ->
-                val tab = KIND_TABS[i]
-                val selected = i == kindIdx
-                Box(
-                    Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(
-                            if (selected) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-                        )
-                        .clickable { kindIdx = i }
-                        .padding(horizontal = 18.dp, vertical = 8.dp),
-                ) {
-                    Text(
-                        tab.label,
-                        fontSize = 13.sp,
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (selected) MaterialTheme.colorScheme.onPrimary
-                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                    )
-                }
+            items(kinds.size) { i ->
+                FilterChip(
+                    selected = kind == i,
+                    onClick = { kind = i },
+                    label = { Text(kinds[i].second) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
+                )
             }
         }
 
-        // 分类 chips（统一圆角 10）
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            items(CATEGORY_CHIPS.size) { i ->
-                val chip = CATEGORY_CHIPS[i]
-                val selected = i == chipIdx
-                Box(
-                    Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(
-                            if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        )
-                        .clickable { chipIdx = i }
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                ) {
-                    Text(
-                        chip.label,
-                        fontSize = 12.sp,
-                        color = if (selected) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    )
-                }
-            }
-        }
+        Spacer(Modifier.height(8.dp))
 
         when {
-            error != null && items.isEmpty() -> EmptyState(
-                error!!,
-                icon = Icons.Rounded.MovieFilter,
-                onRetry = { load(true, 0) },
-            )
-            loading && items.isEmpty() -> GridSkeleton()
+            ui.discoverLoading && ui.discoverItems.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                androidx.compose.material3.CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            }
+            ui.discoverError != null -> SimpleError(text = ui.discoverError, onRetry = { vm.loadDiscover(kind = kinds[kind].first) }, modifier = Modifier.fillMaxSize())
+            ui.discoverItems.isEmpty() -> SimpleEmpty(text = "该分类暂无内容", modifier = Modifier.fillMaxSize())
             else -> LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
-                state = gridState,
-                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 32.dp),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
-                modifier = Modifier.fillMaxSize(),
             ) {
-                items(items, key = { it.id + it.source + it.title }) { item ->
+                items(ui.discoverItems, key = { it.source + it.id }) { d: DoubanItem ->
                     PosterTile(
-                        item = item,
-                        onClick = { onOpenItem(item) },
+                        title = d.title,
+                        poster = d.poster,
                         modifier = Modifier.fillMaxWidth(),
+                        width = 0.dp, // 由网格约束决定宽度
+                        rate = d.rate.takeIf { it.isNotBlank() },
+                        onClick = { onOpenDetail(doubanTarget(d)) },
                     )
-                }
-                // 加载更多
-                if (loading) {
-                    item {
-                        Box(
-                            Modifier
-                                .fillMaxWidth()
-                                .height(48.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            CircularProgressIndicator(
-                                color = MaterialTheme.colorScheme.primary,
-                                strokeWidth = 2.dp,
-                                modifier = Modifier.height(20.dp).width(20.dp),
-                            )
-                        }
-                    }
-                }
-                // 分页失败提示
-                if (error != null && items.isNotEmpty()) {
-                    item {
-                        Text(
-                            "加载失败，点击重试",
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                            fontSize = 12.sp,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { load(false, page) }
-                                .padding(vertical = 12.dp),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                        )
-                    }
                 }
             }
         }
     }
 }
+
+private fun doubanTarget(d: DoubanItem) = DetailTarget(id = d.id, source = d.source, title = d.title, poster = d.poster, year = d.year)

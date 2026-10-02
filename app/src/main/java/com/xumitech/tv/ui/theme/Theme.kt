@@ -14,131 +14,131 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// ---------------- 品牌色（深色影视风 月光紫 + 天空蓝） ----------------
-val Primary = Color(0xFF6C5CE7)        // 月光紫
-val PrimaryDark = Color(0xFF5A4BD6)
-val PrimaryLight = Color(0xFF8B7CF8)
-val SkyBlue = Color(0xFF0EA5E9)        // 天空蓝
-val Aqua = Color(0xFF22D3EE)           // 青蓝（渐变尾色）
-val Secondary = Color(0xFFFF6B81)      // 珊瑚粉
-val Gold = Color(0xFFFFC53D)           // 琥珀金（评分）
-val Green = Color(0xFF2ED573)          // 翡翠绿（速度/更新）
-val Danger = Color(0xFFFF5D6C)         // 危险红
+// ================= 品牌 Token(单一 accent:琥珀金 + 深蓝影院黑) =================
 
-// 液态玻璃导航栏 accent（对齐 AndroidLiquidGlass 官方蓝, 微调为品牌紫蓝渐变）
-val LiquidAccentLight = Color(0xFF4F6BFF)   // 浅色: 电光紫蓝
-val LiquidAccentDark = Color(0xFF7C8CFF)    // 深色: 亮紫蓝
+/** 交互/主色 —— 全应用唯一 accent。 */
+val Accent = Color(0xFFE0A458)          // 琥珀金
+val AccentDark = Color(0xFFC98A3E)
+val AccentContainer = Color(0xFF3A2F1E)
+val OnAccent = Color(0xFF1A140E)
 
-// ---------------- 登录页渐变（紫 → 蓝 → 深底, 更通透） ----------------
-val LoginGradientTop = Color(0xFF201650)
-val LoginGradientMid = Color(0xFF3B2178)
-val LoginGradientBottom = Color(0xFF0B0C14)
+/** 深色影院底。 */
+val CinemaBlack = Color(0xFF08090C)
+val CinemaSurface = Color(0xFF101218)
+val CinemaSurfaceHi = Color(0xFF181B23)
+val CinemaOutline = Color(0xFF262A33)
+val CinemaOutlineHi = Color(0xFF333845)
 
-// ---------------- 语义 token（覆盖层 / 角标 / 玻璃, 替代散落硬编码） ----------------
-/** 海报底部渐变遮罩（PosterTile/FavoriteTile/今日更新） */
-val Scrim = Color(0x66000000)
-/** 重遮罩: 播放页顶部/底部渐变、角标底 */
-val ScrimHeavy = Color(0xCC000000)
-/** 轻遮罩: 播放卡/历史卡播放图标底 */
-val ScrimLight = Color(0x33000000)
-/** 详情头图遮罩上 */
-val ScrimHeroTop = Color(0x55000000)
-/** 详情头图遮罩下 */
-val ScrimHeroBottom = Color(0xE60B0C12)
-/** 追更未看角标底（深蓝） */
-val BadgeBlue = Color(0xE6142B3F)
-/** 今日更新角标底（深绿） */
-val BadgeGreen = Color(0xE6007A2D)
-/** 删除角标底 */
-val BadgeDelete = Color(0x99000000)
-/** 玻璃深底（播放页面板/测速卡, 与 Common GlassCard 同族） */
-val GlassDeep = Color(0xFF14161F)
-/** 玻璃中底（Shimmer/描边） */
-val GlassMid = Color(0xFF2A2D3A)
+/** 浅色模式底。 */
+val Paper = Color(0xFFF5F3EE)
+val PaperSurface = Color(0xFFFFFFFF)
+val PaperOutline = Color(0xFFE3DFD6)
 
-// ---------------- shape token（形状单一档位） ----------------
-val XumiShapes = Shapes(
-    extraSmall = RoundedCornerShape(10.dp),   // chip / 列表行
-    small = RoundedCornerShape(12.dp),        // 海报封面 / 表单
-    medium = RoundedCornerShape(14.dp),       // 按钮 / 输入框
-    large = RoundedCornerShape(20.dp),        // 玻璃卡片
-    extraLarge = RoundedCornerShape(24.dp),   // 大卡 / 对话框
-)
+/** 语义色(非主 accent,仅功能性)。 */
+val Success = Color(0xFF2ED573)
+val Danger = Color(0xFFFF5D6C)
+val Info = Color(0xFF4FC3F7)
 
-// ---------------- type scale（字号单一档位） ----------------
-val XumiTypography = Typography(
-    displayLarge = TextStyle(fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.sp),
-    headlineMedium = TextStyle(fontSize = 24.sp, fontWeight = FontWeight.ExtraBold),   // 页标题
-    titleLarge = TextStyle(fontSize = 22.sp, fontWeight = FontWeight.Bold),            // 详情标题
-    titleMedium = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.Bold),           // 区块标题
-    titleSmall = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.SemiBold),        // 卡片标题
-    bodyLarge = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Normal),           // 正文/按钮
-    bodyMedium = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Normal),          // 简介/次要正文
-    labelLarge = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium),          // 角标/标签
-    labelSmall = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Medium),          // 微标注
-)
+/** 旧版品牌色(仅登录页氛围光晕使用,不进入交互 token)。 */
+val BrandViolet = Color(0xFF6C5CE7)
+val BrandSky = Color(0xFF0EA5E9)
+val BrandAqua = Color(0xFF22D3EE)
 
-// ---------------- 深色色板（默认影视风, 品牌紫蓝层次增强） ----------------
 private val DarkColors = darkColorScheme(
-    primary = PrimaryLight,
-    onPrimary = Color(0xFF140F33),
-    primaryContainer = Color(0xFF4A36B8),
-    onPrimaryContainer = Color(0xFFEDE9FF),
-    secondary = Color(0xFFFF8A9B),
-    onSecondary = Color(0xFF3D0A14),
-    secondaryContainer = Color(0xFF5A2330),
-    onSecondaryContainer = Color(0xFFFFD9DE),
-    tertiary = Gold,
-    onTertiary = Color(0xFF3D2C00),
-    tertiaryContainer = Color(0xFF5C4400),
-    onTertiaryContainer = Color(0xFFFFDEA0),
-    background = Color(0xFF0A0B12),
-    onBackground = Color(0xFFECEDF3),
-    surface = Color(0xFF131521),
-    onSurface = Color(0xFFECEDF3),
-    surfaceVariant = Color(0xFF1D2030),
-    onSurfaceVariant = Color(0xFFA9ADC2),
-    surfaceContainerLowest = Color(0xFF08090E),
-    surfaceContainerLow = Color(0xFF0F1018),
-    surfaceContainer = Color(0xFF131521),
-    surfaceContainerHigh = Color(0xFF191B28),
-    surfaceContainerHighest = Color(0xFF20232F),
-    outline = Color(0xFF2A2D3A),
-    outlineVariant = Color(0xFF3A3E4E),
-    error = Color(0xFFFFB4AB),
-    onError = Color(0xFF690005),
+    primary = Accent,
+    onPrimary = OnAccent,
+    primaryContainer = AccentContainer,
+    onPrimaryContainer = Color(0xFFFFE3B3),
+    secondary = AccentDark,
+    onSecondary = OnAccent,
+    background = CinemaBlack,
+    onBackground = Color(0xFFE9EAEE),
+    surface = CinemaSurface,
+    onSurface = Color(0xFFE9EAEE),
+    surfaceVariant = CinemaSurfaceHi,
+    onSurfaceVariant = Color(0xFF9AA0AC),
+    surfaceContainerHighest = CinemaSurfaceHi,
+    surfaceContainerHigh = CinemaSurfaceHi,
+    surfaceContainer = CinemaSurface,
+    surfaceContainerLow = CinemaSurface,
+    surfaceContainerLowest = CinemaBlack,
+    outline = CinemaOutline,
+    outlineVariant = CinemaOutlineHi,
+    error = Danger,
+    onError = Color(0xFF2A0A0E),
+    tertiary = Info,
+    onTertiary = Color(0xFF06202B),
 )
 
-// ---------------- 浅色色板（品牌紫蓝, 柔和渐变） ----------------
 private val LightColors = lightColorScheme(
-    primary = Primary,
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFE8E3FF),
-    onPrimaryContainer = Color(0xFF1A1060),
-    secondary = Secondary,
-    onSecondary = Color.White,
-    secondaryContainer = Color(0xFFFFD9DE),
-    onSecondaryContainer = Color(0xFF40121B),
-    tertiary = Color(0xFF8A6D00),
-    onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFFFE3A8),
-    onTertiaryContainer = Color(0xFF2B2000),
-    background = Color(0xFFF6F7FC),
-    onBackground = Color(0xFF1A1C24),
-    surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF1A1C24),
-    surfaceVariant = Color(0xFFEDEFF7),
-    onSurfaceVariant = Color(0xFF4A4E5C),
-    surfaceContainerLowest = Color.White,
-    surfaceContainerLow = Color(0xFFF7F8FD),
-    surfaceContainer = Color(0xFFF1F2F9),
-    surfaceContainerHigh = Color(0xFFEBECF4),
-    surfaceContainerHighest = Color(0xFFE3E5EF),
-    outline = Color(0xFFD6D9E4),
-    outlineVariant = Color(0xFFC4C8D4),
-    error = Color(0xFFB3261E),
-    onError = Color.White,
+    primary = AccentDark,
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFFF4E3C8),
+    onPrimaryContainer = Color(0xFF3A2A12),
+    secondary = AccentDark,
+    onSecondary = Color(0xFFFFFFFF),
+    background = Paper,
+    onBackground = Color(0xFF1A1C20),
+    surface = PaperSurface,
+    onSurface = Color(0xFF1A1C20),
+    surfaceVariant = Color(0xFFEDEAE3),
+    onSurfaceVariant = Color(0xFF555A63),
+    surfaceContainerHighest = Color(0xFFEDEAE3),
+    surfaceContainerHigh = Color(0xFFF0EDE7),
+    surfaceContainer = Color(0xFFF8F6F1),
+    surfaceContainerLow = Color(0xFFFCFBF8),
+    surfaceContainerLowest = Color(0xFFFFFFFF),
+    outline = PaperOutline,
+    outlineVariant = Color(0xFFC9C4B8),
+    error = Danger,
+    onError = Color(0xFFFFFFFF),
+    tertiary = Info,
+    onTertiary = Color(0xFF06202B),
 )
+
+// ================= 形状 Token(收紧到 6 档) =================
+
+/** xs:标签/小徽章 · sm:列表行 · md:输入框/卡片内侧 · lg:大卡/弹层 · xl:页面级容器。 */
+val ShapeXs = RoundedCornerShape(6.dp)
+val ShapeSm = RoundedCornerShape(8.dp)
+val ShapeMd = RoundedCornerShape(12.dp)
+val ShapeLg = RoundedCornerShape(16.dp)
+val ShapeXl = RoundedCornerShape(24.dp)
+val ShapeFull = RoundedCornerShape(50)
+
+val XumiShapes = Shapes(
+    extraSmall = ShapeXs,
+    small = ShapeSm,
+    medium = ShapeMd,
+    large = ShapeLg,
+    extraLarge = ShapeXl,
+)
+
+// ================= 字号 Token(收紧到 7 档) =================
+
+val TypeHero = 32.sp
+val TypeTitle = 22.sp
+val TypeHeadline = 17.sp
+val TypeBody = 14.sp
+val TypeCaption = 12.sp
+val TypeMicro = 11.sp
+val TypeButton = 15.sp
+
+val XumiTypography = Typography(
+    displayLarge = TextStyle(fontSize = TypeHero, fontWeight = FontWeight.ExtraBold, lineHeight = 36.sp, letterSpacing = (-0.5).sp),
+    headlineMedium = TextStyle(fontSize = TypeTitle, fontWeight = FontWeight.Bold, lineHeight = 28.sp),
+    titleLarge = TextStyle(fontSize = TypeTitle, fontWeight = FontWeight.Bold, lineHeight = 28.sp),
+    titleMedium = TextStyle(fontSize = TypeHeadline, fontWeight = FontWeight.SemiBold, lineHeight = 24.sp),
+    titleSmall = TextStyle(fontSize = TypeBody, fontWeight = FontWeight.SemiBold, lineHeight = 20.sp),
+    bodyLarge = TextStyle(fontSize = TypeBody, fontWeight = FontWeight.Normal, lineHeight = 22.sp),
+    bodyMedium = TextStyle(fontSize = TypeBody, fontWeight = FontWeight.Normal, lineHeight = 20.sp),
+    bodySmall = TextStyle(fontSize = TypeCaption, fontWeight = FontWeight.Normal, lineHeight = 16.sp),
+    labelLarge = TextStyle(fontSize = TypeButton, fontWeight = FontWeight.SemiBold, lineHeight = 20.sp),
+    labelMedium = TextStyle(fontSize = TypeCaption, fontWeight = FontWeight.Medium, lineHeight = 16.sp),
+    labelSmall = TextStyle(fontSize = TypeMicro, fontWeight = FontWeight.Medium, lineHeight = 14.sp),
+)
+
+// ================= 主题入口 =================
 
 @Composable
 fun XumiTheme(

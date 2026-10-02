@@ -1,17 +1,11 @@
 package com.xumitech.tv.ui.components
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,30 +14,155 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.xumitech.tv.ui.theme.GlassDeep
-import com.xumitech.tv.ui.theme.GlassMid
 
-/** 区块标题（标题 + 可选副标题）。 */
+/** 全屏加载态:细环居中 + 文字。 */
+@Composable
+fun CenterLoading(modifier: Modifier = Modifier, label: String? = null) {
+    Column(
+        modifier = modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(34.dp),
+            color = MaterialTheme.colorScheme.primary,
+            strokeWidth = 3.dp,
+        )
+        if (label != null) {
+            Spacer(Modifier.height(12.dp))
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** 空态:图标 + 主文案 + 可选副文案 + 可选动作。 */
+@Composable
+fun EmptyState(
+    text: String,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 32.dp, vertical = 48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            "◌",
+            fontSize = 40.sp,
+            color = MaterialTheme.colorScheme.outline,
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        if (subtitle != null) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.outline,
+                textAlign = TextAlign.Center,
+            )
+        }
+        if (actionLabel != null && onAction != null) {
+            Spacer(Modifier.height(20.dp))
+            Button(
+                onClick = onAction,
+                shape = MaterialTheme.shapes.medium,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+            ) {
+                Text(actionLabel, style = MaterialTheme.typography.labelLarge)
+            }
+        }
+    }
+}
+
+/** 错误态:主文案 + 错误说明 + 重试按钮。 */
+@Composable
+fun ErrorState(
+    text: String,
+    modifier: Modifier = Modifier,
+    detail: String? = null,
+    onRetry: () -> Unit,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 32.dp, vertical = 48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            "⚠",
+            fontSize = 40.sp,
+            color = MaterialTheme.colorScheme.error,
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+        )
+        if (detail != null) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                detail,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.outline,
+                textAlign = TextAlign.Center,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Spacer(Modifier.height(20.dp))
+        Button(
+            onClick = onRetry,
+            shape = MaterialTheme.shapes.medium,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+            ),
+        ) {
+            Text("重试", style = MaterialTheme.typography.labelLarge)
+        }
+    }
+}
+
+/** 区块标题:标题 + 可选副标题 + 可选右侧动作。 */
 @Composable
 fun SectionHeader(
     title: String,
@@ -52,202 +171,112 @@ fun SectionHeader(
     action: (@Composable () -> Unit)? = null,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+        modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        if (subtitle != null) {
-            Spacer(Modifier.width(6.dp))
+        Column(Modifier.weight(1f)) {
             Text(
-                text = subtitle,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
+            if (subtitle != null) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
-        Spacer(Modifier.weight(1f))
-        action?.invoke()
+        if (action != null) {
+            Spacer(Modifier.width(8.dp))
+            action()
+        }
     }
 }
 
-/** 毛玻璃卡片容器（模糊 + 半透明 + 圆角 + 轻描边）。 */
+/** 玻璃卡:半透明表面 + 渐变 + 可选描边。 */
 @Composable
 fun GlassCard(
     modifier: Modifier = Modifier,
-    cornerRadius: Dp = 20.dp,
-    content: @Composable BoxScope.() -> Unit,
+    cornerRadius: androidx.compose.ui.unit.Dp = 20.dp,
+    contentPadding: PaddingValues = PaddingValues(16.dp),
+    content: @Composable () -> Unit,
 ) {
-    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    Box(
-        modifier
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        if (isDark) GlassMid.copy(alpha = 0.55f)
-                        else Color(0xFFFFFFFF).copy(alpha = 0.65f),
-                        if (isDark) GlassDeep.copy(alpha = 0.45f)
-                        else Color(0xFFF7F8FC).copy(alpha = 0.55f),
+    val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val base = if (dark) Color(0xFF2A2D3A) else Color(0xFFFFFFFF)
+    val overlay = if (dark) Color(0xFF14161F) else Color(0xFFF7F8FC)
+    Surface(
+        modifier = modifier,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(cornerRadius),
+        color = Color.Transparent,
+    ) {
+        Box(
+            Modifier
+                .background(
+                    Brush.verticalGradient(
+                        listOf(base.copy(alpha = 0.55f), overlay.copy(alpha = 0.45f)),
                     ),
-                ),
-                shape = RoundedCornerShape(cornerRadius),
-            )
-            .padding(16.dp),
-        content = content,
-    )
+                )
+                .padding(contentPadding),
+        ) {
+            content()
+        }
+    }
 }
 
-/** 微光加载（学 Flutter Shimmer）。 */
+/** 骨架屏占位块。 */
 @Composable
 fun ShimmerBox(
     modifier: Modifier = Modifier,
-    cornerRadius: Dp = 10.dp,
-    baseColor: Color = GlassMid,
-    highlightColor: Color = Color(0xFF3A3E4E),
+    cornerRadius: androidx.compose.ui.unit.Dp = 10.dp,
 ) {
-    val transition = rememberInfiniteTransition(label = "shimmer")
-    val x by transition.animateFloat(
-        initialValue = -1f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "x",
-    )
+    val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val base = if (dark) Color(0xFF2A2D3A) else Color(0xFFE3E0DA)
     Box(
-        modifier.background(
-            brush = Brush.linearGradient(
-                colors = listOf(baseColor, highlightColor, baseColor),
-                start = Offset(x * 400f, 0f),
-                end = Offset(x * 400f + 200f, 200f),
-            ),
-            shape = RoundedCornerShape(cornerRadius),
-        ),
+        modifier
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(cornerRadius))
+            .background(base),
     )
 }
 
-/** 加载骨架：首页区块占位。 */
+/** 海报骨架(2:3)。 */
 @Composable
-fun HomeSkeleton() {
-    Column(Modifier.fillMaxWidth().padding(top = 12.dp)) {
-        ShimmerBox(Modifier.padding(horizontal = 16.dp).width(120.dp).height(20.dp), 8.dp)
-        Spacer(Modifier.height(10.dp))
-        Row(
-            Modifier.padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
+fun PosterShimmer(modifier: Modifier = Modifier) {
+    ShimmerBox(modifier, cornerRadius = 12.dp)
+}
+
+/** 首页骨架:标题条 + 横滑海报。 */
+@Composable
+fun HomeSkeleton(modifier: Modifier = Modifier) {
+    Column(modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        ShimmerBox(Modifier.height(20.dp).fillMaxWidth(0.4f), cornerRadius = 6.dp)
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             repeat(4) {
-                ShimmerBox(Modifier.width(112.dp).height(168.dp), 10.dp)
+                PosterShimmer(Modifier.width(112.dp).height(168.dp))
             }
         }
     }
 }
 
-/** 通用列表骨架（标题条 + N 行占位, 供收藏/历史/榜单页加载态）。 */
+/** 通用的"查看更多"文字按钮。 */
 @Composable
-fun ListSkeleton(rows: Int = 4) {
-    Column(Modifier.fillMaxWidth().padding(top = 12.dp)) {
-        repeat(rows) {
-            ShimmerBox(
-                Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                    .fillMaxWidth()
-                    .height(64.dp),
-                12.dp,
-            )
-        }
-    }
-}
-
-/** 网格骨架（N 列海报占位, 供收藏/榜单页加载态）。 */
-@Composable
-fun GridSkeleton(columns: Int = 3, rows: Int = 4) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp)) {
-        repeat(rows) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                repeat(columns) {
-                    ShimmerBox(
-                        Modifier.weight(1f).aspectRatio(2f / 3f),
-                        12.dp,
-                    )
-                }
-            }
-            Spacer(Modifier.height(14.dp))
-        }
-    }
-}
-
-/** 空状态（图标 + 标题 + 可选引导 + 可选重试）。 */
-@Composable
-fun EmptyState(
-    text: String,
+fun SeeMoreText(
+    text: String = "查看全部",
     modifier: Modifier = Modifier,
-    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
-    hint: String? = null,
-    onRetry: (() -> Unit)? = null,
+    onClick: () -> Unit,
 ) {
-    Column(
-        modifier.fillMaxWidth().padding(vertical = 48.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        if (icon != null) {
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
-                modifier = Modifier.size(44.dp),
-            )
-            Spacer(Modifier.height(10.dp))
-        }
+    androidx.compose.material3.TextButton(onClick = onClick, modifier = modifier) {
         Text(
-            text = text,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-            fontSize = 14.sp,
+            text,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
         )
-        if (hint != null) {
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = hint,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                fontSize = 12.sp,
-            )
-        }
-        if (onRetry != null) {
-            Spacer(Modifier.height(10.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .clickable { onRetry() }
-                    .background(
-                        MaterialTheme.colorScheme.surfaceVariant,
-                        RoundedCornerShape(50),
-                    )
-                    .padding(horizontal = 14.dp, vertical = 6.dp),
-            ) {
-                Icon(
-                    Icons.Rounded.Refresh,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(14.dp),
-                )
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    text = "点击重试",
-                    color = MaterialTheme.colorScheme.primary,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                )
-            }
-        }
-    }
-}
-
-/** 居中加载指示器。 */
-@Composable
-fun CenterLoading(modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
     }
 }

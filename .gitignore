@@ -13,3 +13,6 @@ HANDOVER*.md
 
 # 系统
 .DS_Store
+# 本地文档(不进仓库)
+DESIGN_AUDIT.md
+HANDOVER_KT.md

@@ -1,9 +1,14 @@
 package com.xumitech.tv.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,89 +18,81 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.xumitech.tv.model.DoubanItem
-import com.xumitech.tv.model.PlayRecord
-import com.xumitech.tv.ui.theme.BadgeBlue
-import com.xumitech.tv.ui.theme.BadgeGreen
-import com.xumitech.tv.ui.theme.Gold
-import com.xumitech.tv.ui.theme.Scrim
-import com.xumitech.tv.ui.theme.ScrimHeavy
-import com.xumitech.tv.ui.theme.ScrimLight
-import com.xumitech.tv.ui.theme.SkyBlue
+import com.xumitech.tv.data.DoubanItem
+import com.xumitech.tv.data.Favorite
+import com.xumitech.tv.data.Following
+import com.xumitech.tv.data.PlayRecord
+import com.xumitech.tv.data.TodayUpdatedItem
+import com.xumitech.tv.ui.theme.Accent
+import com.xumitech.tv.ui.theme.Danger
+import com.xumitech.tv.ui.theme.ShapeMd
+import com.xumitech.tv.ui.theme.ShapeXs
+import com.xumitech.tv.ui.theme.Success
 
-/** 海报底部渐变遮罩（PosterTile 家族共用）。 */
-private fun Modifier.posterScrim(): Modifier = this.background(
-    Brush.verticalGradient(
-        colors = listOf(Color.Transparent, Scrim),
-        startY = 400f,
-        endY = 600f,
-    ),
-)
-
-/** 卡片通用小角标。 */
-@Composable
-private fun TileBadge(
-    text: String,
-    background: Color,
-    textColor: Color,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier
-            .background(background, RoundedCornerShape(6.dp))
-            .padding(horizontal = 6.dp, vertical = 2.dp),
-    ) {
-        Text(
-            text = text,
-            color = textColor,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-        )
-    }
-}
-
-/** 海报卡片（统一 4 变体: PosterTile / GridPoster / FavoriteTile / 搜索源卡）。 */
+/** 海报 2:3,圆角 12,底部渐变遮罩 + 评分角标 + 按压鼓胀。 */
 @Composable
 fun PosterTile(
     title: String,
     poster: String,
-    onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    width: Dp = 112.dp,
+    width: androidx.compose.ui.unit.Dp = 112.dp,
     rate: String? = null,
-    badge: (@Composable () -> Unit)? = null,
-    topEnd: (@Composable () -> Unit)? = null,
-    subtitle: String? = null,
+    badge: String? = null,
+    badgeColor: Color = Accent,
+    onClick: () -> Unit,
 ) {
+    var pressed by remember { mutableFloatStateOf(0f) }
+    val scale by animateFloatAsState(
+        targetValue = if (pressed > 0f) 0.96f else 1f,
+        animationSpec = spring(dampingRatio = 0.5f, stiffness = 500f),
+        label = "posterScale",
+    )
+    val wMod = if (width > 0.dp) Modifier.width(width) else Modifier
     Column(
-        modifier
-            .width(width)
-            .clickable(onClick = onClick),
+        modifier = modifier.then(wMod),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
             Modifier
-                .width(width)
+                .then(wMod)
                 .aspectRatio(2f / 3f)
-                .clip(RoundedCornerShape(12.dp)),
+                .scale(scale)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .pointerInput(title) {
+                    detectTapGestures(
+                        onPress = {
+                            pressed = 1f
+                            tryAwaitRelease()
+                            pressed = 0f
+                        },
+                        onTap = { onClick() },
+                    )
+                },
         ) {
             AsyncImage(
                 model = poster,
@@ -103,118 +100,86 @@ fun PosterTile(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
-            Box(Modifier.fillMaxSize().posterScrim())
-            if (rate != null && rate.isNotEmpty() && rate != "0") {
+            // 底部渐变遮罩(文字可读性)
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, Color(0x66000000)),
+                            startY = 400f,
+                            endY = 600f,
+                        ),
+                    ),
+            )
+            // 评分角标(右下)
+            if (rate != null && rate.isNotBlank()) {
                 Box(
                     Modifier
-                        .align(Alignment.TopEnd)
+                        .align(Alignment.BottomEnd)
                         .padding(6.dp)
-                        .background(ScrimHeavy, RoundedCornerShape(50))
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(0xCC000000))
                         .padding(horizontal = 6.dp, vertical = 2.dp),
                 ) {
                     Text(
-                        text = rate,
-                        color = Gold,
+                        rate,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
+                        color = Color(0xFFFFC53D),
                     )
                 }
             }
-            if (topEnd != null) {
-                Box(Modifier.align(Alignment.TopEnd).padding(2.dp)) { topEnd() }
-            }
+            // 角标(左上)
             if (badge != null) {
-                Box(Modifier.align(Alignment.BottomEnd).padding(6.dp)) { badge() }
+                Box(
+                    Modifier
+                        .align(Alignment.TopStart)
+                        .padding(6.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(badgeColor)
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                ) {
+                    Text(
+                        badge,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                    )
+                }
             }
         }
         Spacer(Modifier.height(6.dp))
         Text(
-            text = title,
-            maxLines = 1,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
+            title,
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-        )
-        if (subtitle != null) {
-            Text(
-                text = subtitle,
-                maxLines = 1,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
-            )
-        }
-    }
-}
-
-/** 兼容旧签名: 由 DoubanItem 驱动。 */
-@Composable
-fun PosterTile(
-    item: DoubanItem,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    width: Dp = 112.dp,
-) {
-    PosterTile(
-        title = item.title,
-        poster = item.poster,
-        onClick = onClick,
-        modifier = modifier,
-        width = width,
-        rate = item.rate,
-        subtitle = item.year,
-    )
-}
-
-/** 公共渐变进度条（ContinueWatchingCard / HistoryItem / Detail / Play 共用）。 */
-@Composable
-fun GradientProgressBar(
-    progress: Float,
-    modifier: Modifier = Modifier,
-    height: Dp = 3.dp,
-    corner: Dp = 2.dp,
-) {
-    Box(
-        modifier
-            .fillMaxWidth()
-            .height(height)
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(corner)),
-    ) {
-        Box(
-            Modifier
-                .fillMaxWidth(progress.coerceIn(0f, 1f))
-                .height(height)
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(MaterialTheme.colorScheme.primary, SkyBlue),
-                    ),
-                    RoundedCornerShape(corner),
-                ),
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
 
-/** 继续观看卡片（播放记录 + 进度条）。 */
+/** 继续观看卡(16:9 横卡,遮罩 + 播放箭头 + 进度条)。 */
 @Composable
 fun ContinueWatchingCard(
     record: PlayRecord,
-    onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onClick: () -> Unit,
 ) {
-    val progress = if (record.totalTime > 0) {
-        (record.playTime.toFloat() / record.totalTime).coerceIn(0f, 1f)
-    } else 0f
-
+    val progress = if (record.totalTime > 0) (record.playTime.toFloat() / record.totalTime).coerceIn(0f, 1f) else 0f
     Column(
-        modifier
-            .width(168.dp)
-            .clickable(onClick = onClick),
+        modifier = modifier.width(168.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
             Modifier
                 .width(168.dp)
                 .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(12.dp)),
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .clickable(onClick = onClick),
         ) {
             AsyncImage(
                 model = record.cover,
@@ -222,113 +187,194 @@ fun ContinueWatchingCard(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
-            // 播放图标覆盖
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(ScrimLight),
+                    .background(Color(0x33000000)),
+            )
+            Icon(
+                Icons.Rounded.PlayArrow,
+                contentDescription = "继续播放",
+                tint = Color.White,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(34.dp),
+            )
+            // 集数角标
+            Box(
+                Modifier
+                    .align(Alignment.TopStart)
+                    .padding(6.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color(0xCC000000))
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.PlayArrow,
-                    contentDescription = "继续播放",
-                    tint = Color.White,
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .size(34.dp),
+                Text(
+                    "第${record.index}集",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
                 )
             }
-            // 集数角标
-            if (record.totalEpisodes > 1) {
-                TileBadge(
-                    text = "第${record.index}集",
-                    background = ScrimHeavy,
-                    textColor = Color.White,
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp),
+            // 进度条(底部)
+            Box(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxWidth(progress)
+                        .height(3.dp)
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(MaterialTheme.colorScheme.primary, Color(0xFF0EA5E9)),
+                            ),
+                        ),
                 )
             }
         }
         Spacer(Modifier.height(6.dp))
         Text(
-            text = record.title,
-            maxLines = 1,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
+            record.title,
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth(),
         )
-        Spacer(Modifier.height(4.dp))
-        GradientProgressBar(progress)
-        Spacer(Modifier.height(4.dp))
         Text(
-            text = formatPlayTime(record.playTime),
+            "已观看 ${formatPlayTime(record.playTime)}",
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
 
-private fun formatPlayTime(sec: Int): String {
-    if (sec <= 0) return "未开始"
-    val h = sec / 3600
-    val m = (sec % 3600) / 60
-    return if (h > 0) "已观看 ${h}小时${m}分" else "已观看 ${m}分钟"
-}
-
-/** 追更卡片（学网页端 Following）：已看 N / 共 M 集 + 未看角标。 */
+/** 追更卡(110dp 竖卡,未看角标)。 */
 @Composable
 fun FollowingCard(
-    title: String,
-    poster: String,
-    watchedEpisodes: Int,
-    totalEpisodes: Int,
-    onClick: () -> Unit,
+    following: Following,
     modifier: Modifier = Modifier,
+    onClick: () -> Unit,
 ) {
-    val unwatched = (totalEpisodes - watchedEpisodes).coerceAtLeast(0)
-    PosterTile(
-        title = title,
-        poster = poster,
-        onClick = onClick,
-        modifier = modifier,
-        width = 110.dp,
-        badge = if (unwatched > 0) {
-            {
-                TileBadge(
-                    text = "$unwatched 未看",
-                    background = BadgeBlue,
-                    textColor = Gold,
-                )
+    val unwatched = (following.totalEpisodes - following.watchedEpisodes).coerceAtLeast(0)
+    Column(
+        modifier = modifier.width(110.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            Modifier
+                .width(110.dp)
+                .aspectRatio(2f / 3f)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .clickable(onClick = onClick),
+        ) {
+            AsyncImage(
+                model = following.cover,
+                contentDescription = following.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+            if (unwatched > 0) {
+                Box(
+                    Modifier
+                        .align(Alignment.TopStart)
+                        .padding(6.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(0xE6142B3F))
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                ) {
+                    Text(
+                        "$unwatched 未看",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Accent,
+                    )
+                }
             }
-        } else null,
-        subtitle = "看完 $watchedEpisodes/$totalEpisodes 集",
-    )
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            following.title,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            "看完 ${following.watchedEpisodes}/${following.totalEpisodes} 集",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
-/** 今日新更卡片（学 Flutter _TodayUpdated）：更新+新集数角标。 */
+/** 今日新更卡(128dp 竖卡,更新角标)。 */
 @Composable
 fun TodayUpdatedCard(
-    title: String,
-    poster: String,
-    sourceName: String,
-    newEpisodes: Int,
-    onClick: () -> Unit,
+    item: TodayUpdatedItem,
     modifier: Modifier = Modifier,
+    onClick: () -> Unit,
 ) {
-    PosterTile(
-        title = title,
-        poster = poster,
-        onClick = onClick,
-        modifier = modifier,
-        width = 128.dp,
-        badge = if (newEpisodes > 0) {
-            {
-                TileBadge(
-                    text = "更新+$newEpisodes",
-                    background = BadgeGreen,
-                    textColor = Color.White,
-                )
+    Column(
+        modifier = modifier.width(128.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            Modifier
+                .width(128.dp)
+                .aspectRatio(2f / 3f)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .clickable(onClick = onClick),
+        ) {
+            AsyncImage(
+                model = item.poster,
+                contentDescription = item.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+            if (item.newEpisodes > 0) {
+                Box(
+                    Modifier
+                        .align(Alignment.TopStart)
+                        .padding(6.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(0xE6007A2D))
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                ) {
+                    Text(
+                        "更新+${item.newEpisodes}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                    )
+                }
             }
-        } else null,
-        subtitle = sourceName,
-    )
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            item.title,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/** 时间格式化:秒 → "X小时Y分" / "X分钟"。 */
+fun formatPlayTime(seconds: Int): String {
+    if (seconds <= 0) return "未观看"
+    val h = seconds / 3600
+    val m = (seconds % 3600) / 60
+    return if (h > 0) "${h}小时${m}分" else "${m}分钟"
 }

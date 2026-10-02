@@ -6,19 +6,21 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.FavoriteBorder
-import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.PersonOutline
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.PersonOutline
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -26,171 +28,185 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.xumitech.tv.data.AuthStore
-import com.xumitech.tv.model.DoubanItem
-import com.xumitech.tv.ui.components.LiquidNavBar
-import com.xumitech.tv.ui.components.NavTab
+import com.xumitech.tv.data.VideoGroup
+import com.xumitech.tv.ui.screens.AdminScreen
 import com.xumitech.tv.ui.screens.DetailScreen
+import com.xumitech.tv.ui.screens.DiscoverScreen
 import com.xumitech.tv.ui.screens.FavoritesScreen
 import com.xumitech.tv.ui.screens.HistoryScreen
 import com.xumitech.tv.ui.screens.HomeScreen
 import com.xumitech.tv.ui.screens.LoginScreen
+import com.xumitech.tv.ui.screens.PlayScreen
 import com.xumitech.tv.ui.screens.ProfileScreen
 import com.xumitech.tv.ui.screens.SearchScreen
+import com.xumitech.tv.ui.state.AppUiState
+import com.xumitech.tv.ui.state.AppViewModel
+import com.xumitech.tv.ui.state.AuthState
 import com.xumitech.tv.ui.theme.XumiTheme
+
+/** 覆盖层目标。 */
+sealed interface Overlay {
+    data object None : Overlay
+    data object Search : Overlay
+    data object Discover : Overlay
+    data object Admin : Overlay
+    data class Detail(val target: DetailTarget) : Overlay
+    data class Play(val req: PlayRequest) : Overlay
+}
+
+/** 详情页轻量入口(从任意卡片点击而来)。 */
+data class DetailTarget(
+    val id: String,
+    val source: String,
+    val title: String,
+    val poster: String,
+    val year: String,
+)
+
+/** 播放请求:分组 + 源/集索引 + 续播秒。 */
+data class PlayRequest(
+    val group: VideoGroup,
+    val sourceIndex: Int,
+    val episodeIndex: Int,
+    val startSec: Long,
+)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            val appState: AppState = viewModel(
-                factory = AppStateFactory(applicationContext),
-            )
-            // 主题跟随 AppState.themeMode（"system" 随系统 / "dark" 强制深色 / "light" 强制浅色）
-            val darkTheme = when (appState.themeMode) {
+            val vm: AppViewModel = viewModel()
+            val ui by vm.ui.collectAsState()
+            val dark = when (ui.themeMode) {
                 "dark" -> true
                 "light" -> false
                 else -> isSystemInDarkTheme()
             }
-            XumiTheme(darkTheme = darkTheme) {
-                Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    var showLogin by remember {
-                        mutableStateOf(
-                            appState.authState is AuthState.Unknown ||
-                                appState.authState is AuthState.LoggedOut,
-                        )
-                    }
-                    if (showLogin) {
-                        LoginScreen(
-                            appState = appState,
-                            onLoggedIn = { showLogin = false },
-                        )
-                    } else {
-                        MainScaffold(
-                            appState = appState,
-                            onLogout = {
-                                appState.logout()
-                                showLogin = true
-                            },
-                        )
-                    }
-                }
+            XumiTheme(darkTheme = dark) {
+                AppRoot(vm, ui)
             }
         }
     }
 }
 
 @Composable
-private fun MainScaffold(
-    appState: AppState,
-    onLogout: () -> Unit,
-) {
+private fun AppRoot(vm: AppViewModel, ui: AppUiState) {
+    when (ui.auth) {
+        AuthState.Unknown -> { /* 启动瞬间,空帧 */ }
+        AuthState.LoggedOut -> LoginScreen(vm)
+        is AuthState.LoggedIn -> LoggedInRoot(vm, ui)
+    }
+}
+
+@Composable
+private fun LoggedInRoot(vm: AppViewModel, ui: AppUiState) {
+    var overlay by remember { mutableStateOf<Overlay>(Overlay.None) }
     var tab by rememberSaveable { mutableIntStateOf(0) }
-    var searchOpen by rememberSaveable { mutableStateOf(false) }
-    var openItem by remember { mutableStateOf<DoubanItem?>(null) }
-    // 历史续播：携带初始集 + 断点秒数
-    var resumeRequest by remember { mutableStateOf<Triple<DoubanItem, Int, Long>?>(null) }
-    var discoverOpen by rememberSaveable { mutableStateOf(false) }
-    var adminOpen by rememberSaveable { mutableStateOf(false) }
 
-    // 覆盖层互斥：进入任一全屏页时关闭其他覆盖层，避免多层叠加的交互混乱
-    fun openDetail(item: DoubanItem, episode: Int = 0, startSec: Long = 0L) {
-        searchOpen = false
-        discoverOpen = false
-        adminOpen = false
-        if (episode > 0 || startSec > 0L) resumeRequest = Triple(item, episode, startSec)
-        else openItem = item
-    }
-    fun closeDetail() {
-        openItem = null
-        resumeRequest = null
+    fun openDetail(target: DetailTarget) {
+        overlay = Overlay.Detail(target)
     }
 
-    val tabs = listOf(
-        NavTab("首页", Icons.Rounded.Home, Icons.Rounded.Home),
-        NavTab("收藏", Icons.Rounded.FavoriteBorder, Icons.Rounded.Favorite),
-        NavTab("历史", Icons.Rounded.History, Icons.Rounded.History),
-        NavTab("我的", Icons.Rounded.PersonOutline, Icons.Rounded.Person),
+    fun openPlay(req: PlayRequest) {
+        overlay = Overlay.Play(req)
+    }
+
+    val closeOverlay: () -> Unit = { overlay = Overlay.None }
+
+    Box {
+        MainScaffold(
+            vm = vm,
+            ui = ui,
+            tab = tab,
+            onTabSelected = { tab = it },
+            onOpenDetail = ::openDetail,
+            onOpenSearch = { overlay = Overlay.Search },
+            onOpenDiscover = { overlay = Overlay.Discover },
+            onOpenAdmin = { overlay = Overlay.Admin },
+        )
+        when (val o = overlay) {
+            Overlay.None -> {}
+            Overlay.Search -> SearchScreen(vm, ui, onClose = closeOverlay, onOpenDetail = ::openDetail)
+            Overlay.Discover -> DiscoverScreen(vm, ui, onClose = closeOverlay, onOpenDetail = ::openDetail)
+            Overlay.Admin -> AdminScreen(onClose = closeOverlay)
+            is Overlay.Detail -> DetailScreen(
+                vm, ui,
+                target = o.target,
+                onClose = closeOverlay,
+                onOpenPlay = { group, srcIdx, epIdx, startSec ->
+                    openPlay(PlayRequest(group, srcIdx, epIdx, startSec))
+                },
+            )
+            is Overlay.Play -> PlayScreen(
+                vm, ui,
+                request = o.req,
+                onClose = closeOverlay,
+                onOpenDetail = { target, srcIdx ->
+                    overlay = Overlay.Detail(target)
+                },
+            )
+        }
+    }
+}
+
+/** 底部四 Tab 主框架。 */
+@Composable
+private fun MainScaffold(
+    vm: AppViewModel,
+    ui: AppUiState,
+    tab: Int,
+    onTabSelected: (Int) -> Unit,
+    onOpenDetail: (DetailTarget) -> Unit,
+    onOpenSearch: () -> Unit,
+    onOpenDiscover: () -> Unit,
+    onOpenAdmin: () -> Unit,
+) {
+    val tabs = listOf<Pair<String, ImageVector>>(
+        "首页" to Icons.Filled.Home,
+        "收藏" to Icons.Filled.FavoriteBorder,
+        "历史" to Icons.Filled.History,
+        "我的" to Icons.Filled.PersonOutline,
     )
-
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            LiquidNavBar(
-                tabs = tabs,
-                selectedIndex = tab,
-                onSelected = { tab = it },
-            )
-        },
-    ) { inner ->
-        Box(Modifier.fillMaxSize().padding(inner)) {
-            when (tab) {
-                0 -> HomeScreen(
-                    appState = appState,
-                    onSearch = { searchOpen = true },
-                    onOpenItem = { item -> openDetail(item) },
-                    onOpenDiscover = {
-                        searchOpen = false
-                        discoverOpen = true
-                    },
-                )
-                1 -> FavoritesScreen(appState, onOpenItem = { item -> openDetail(item) })
-                2 -> HistoryScreen(
-                    appState,
-                    onOpenItem = { item -> openDetail(item) },
-                    onResume = { item, ep, sec ->
-                        openDetail(item, ep, sec)
-                    },
-                )
-                3 -> ProfileScreen(
-                    appState,
-                    onLogout,
-                    onOpenAdmin = { adminOpen = true },
-                )
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 0.dp,
+            ) {
+                tabs.forEachIndexed { i, (label, icon) ->
+                    NavigationBarItem(
+                        selected = tab == i,
+                        onClick = { onTabSelected(i) },
+                        icon = { Icon(icon, contentDescription = label) },
+                        label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                    )
+                }
             }
+        },
+    ) { padding ->
+        when (tab) {
+            0 -> HomeScreen(
+                vm, ui,
+                modifier = Modifier.padding(padding),
+                onOpenDetail = onOpenDetail,
+                onOpenSearch = onOpenSearch,
+                onOpenDiscover = onOpenDiscover,
+            )
+            1 -> FavoritesScreen(vm, ui, modifier = Modifier.padding(padding), onOpenDetail = onOpenDetail)
+            2 -> HistoryScreen(vm, ui, modifier = Modifier.padding(padding), onOpenDetail = onOpenDetail)
+            3 -> ProfileScreen(vm, ui, modifier = Modifier.padding(padding), onOpenAdmin = onOpenAdmin)
         }
-    }
-
-    // 搜索页（全屏覆盖）
-    if (searchOpen) {
-        SearchScreen(
-            appState = appState,
-            onClose = { searchOpen = false },
-            onOpenItem = {
-                openDetail(it)
-            },
-        )
-    }
-
-    // 分类榜单页
-    if (discoverOpen) {
-        com.xumitech.tv.ui.screens.DiscoverScreen(
-            appState = appState,
-            onClose = { discoverOpen = false },
-            onOpenItem = {
-                openDetail(it)
-            },
-        )
-    }
-
-    // 管理后台（全屏覆盖，仅管理员）
-    if (adminOpen) {
-        com.xumitech.tv.ui.screens.AdminScreen(
-            onClose = { adminOpen = false },
-        )
-    }
-
-    // 详情页（全屏覆盖；历史续播优先）
-    val detailReq = resumeRequest ?: openItem?.let { Triple(it, 0, 0L) }
-    detailReq?.let { (item, ep, sec) ->
-        DetailScreen(
-            appState = appState,
-            item = item,
-            onClose = ::closeDetail,
-            initialEpisode = ep,
-            startPositionSec = sec,
-        )
     }
 }

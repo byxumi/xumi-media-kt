@@ -8,7 +8,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.TimeUnit
 
-/** 测速结果（含分辨率，学 MoonTV getVideoResolutionFromM3u8 的分辨率分级）。 */
+/** 测速结果(含分辨率,学 MoonTV getVideoResolutionFromM3u8 的分辨率分级)。 */
 data class SpeedResult(
     val ok: Boolean,
     val speedKBps: Double,
@@ -24,14 +24,12 @@ data class SpeedResult(
             return "未知"
         }
 
-    val pingText: String get() = if (pingMs > 0) "$pingMs ms" else "—"
-
     companion object {
         val FAIL = SpeedResult(false, 0.0, -1, "未知", "")
     }
 }
 
-/** 分辨率 -> 清晰度等级（与 MoonTV 一致）。 */
+/** 分辨率 -> 清晰度等级(与 MoonTV 一致)。 */
 fun qualityOfResolution(res: String): String {
     val m = Regex("(\\d{3,4})x(\\d{3,4})").find(res) ?: return "未知"
     val w = m.groupValues[1].toIntOrNull() ?: 0
@@ -45,7 +43,7 @@ fun qualityOfResolution(res: String): String {
     }
 }
 
-/** 主播放列表解析结果：最佳分辨率 + 子播放列表地址。 */
+/** 主播放列表解析结果:最佳分辨率 + 子播放列表地址。 */
 private data class MasterInfo(val resolution: String?, val children: List<String>)
 
 private fun parseMasterPlaylist(playlist: String): MasterInfo {
@@ -70,14 +68,14 @@ private fun parseMasterPlaylist(playlist: String): MasterInfo {
     return MasterInfo(bestRes, childUrls)
 }
 
-/** 播放源测速：拉 m3u8 测延迟 + 解析分辨率，再拉首个 TS 分片测下载速度。 */
+/** 播放源测速:拉 m3u8 测延迟 + 解析分辨率,再拉首个 TS 分片测下载速度。 */
 object SpeedTester {
     private val client = OkHttpClient.Builder()
         .connectTimeout(8, TimeUnit.SECONDS)
         .readTimeout(8, TimeUnit.SECONDS)
         .build()
 
-    /** suspend 版本：强制 IO 线程，避免主线程 NetworkOnMainThreadException。 */
+    /** suspend 版本:强制 IO 线程,避免主线程 NetworkOnMainThreadException。 */
     suspend fun testSpeed(url: String, referer: String = ""): SpeedResult =
         withContext(Dispatchers.IO) {
             testSpeedSync(url, referer)
@@ -91,7 +89,7 @@ object SpeedTester {
             val body = fetch(baseUrl, referer) ?: return SpeedResult.FAIL
             val pingMs = ((System.nanoTime() - t0) / 1_000_000).toInt()
 
-            // 2. 解析分辨率（主列表优先，递归子列表深 2）
+            // 2. 解析分辨率(主列表优先,递归子列表深 2)
             var res: String? = null
             var currentBody = body
             var currentBase = baseUrl
@@ -112,7 +110,7 @@ object SpeedTester {
             }
             val quality = if (res != null) qualityOfResolution(res) else "未知"
 
-            // 3. 找首个分片测下载速度（在最终使用的播放列表里找）
+            // 3. 找首个分片测下载速度(在最终使用的播放列表里找)
             var segUrl: HttpUrl? = null
             for (line in currentBody.split("\n")) {
                 val t = line.trim()
@@ -133,25 +131,63 @@ object SpeedTester {
         }
     }
 
-    private fun fetch(url: HttpUrl, referer: String): String? {
-        val rb = Request.Builder().url(url)
-            .header("User-Agent", MoonTvApi.UA)
-            .header("Accept", "*/*")
-        if (referer.isNotEmpty()) rb.header("Referer", referer)
-        client.newCall(rb.build()).execute().use { res ->
-            if (!res.isSuccessful) return null
-            return res.body?.string()
-        }
-    }
+    private fun fetch(url: HttpUrl, referer: String): String? =
+        fetchBytes(url, referer)?.toString(Charsets.UTF_8)
 
     private fun fetchBytes(url: HttpUrl, referer: String): ByteArray? {
-        val rb = Request.Builder().url(url)
-            .header("User-Agent", MoonTvApi.UA)
-            .header("Accept", "*/*")
-        if (referer.isNotEmpty()) rb.header("Referer", referer)
-        client.newCall(rb.build()).execute().use { res ->
-            if (!res.isSuccessful) return null
-            return res.body?.bytes()
+        return try {
+            val builder = Request.Builder().url(url).get()
+            if (referer.isNotEmpty()) builder.header("Referer", referer)
+            val resp = client.newCall(builder.build()).execute()
+            resp.use { r ->
+                if (!r.isSuccessful) return null
+                r.body?.bytes()
+            }
+        } catch (_: Exception) {
+            null
         }
+    }
+}
+
+/** 播放源评分(学 MoonTV play-utils.calculateSourceScore):清晰度 40% + 下载速度 40% + 网络延迟 20%。 */
+object SourceScorer {
+    fun scoreOf(r: SpeedResult, all: List<SpeedResult>): Double {
+        if (!r.ok) return -1.0
+
+        val qualityScore = when (r.quality) {
+            "4K" -> 100.0
+            "2K" -> 85.0
+            "1080p" -> 75.0
+            "720p" -> 60.0
+            "480p" -> 40.0
+            "SD" -> 20.0
+            else -> 0.0
+        }
+
+        val maxSpeed = all.asSequence()
+            .filter { it.ok && it.speedKBps > 0 }
+            .map { it.speedKBps }
+            .maxOrNull() ?: 1024.0
+        val speedScore = if (r.speedKBps > 0) {
+            kotlin.math.min(100.0, r.speedKBps / maxSpeed * 100)
+        } else {
+            30.0
+        }
+
+        val pings = all.asSequence()
+            .filter { it.ok && it.pingMs > 0 }
+            .map { it.pingMs }
+            .toList()
+        val pingScore: Double = when {
+            r.pingMs <= 0 || pings.isEmpty() -> 0.0
+            else -> {
+                val minPing = pings.minOrNull()!!
+                val maxPing = pings.maxOrNull()!!
+                if (maxPing == minPing) 100.0
+                else (maxPing - r.pingMs).toDouble() / (maxPing - minPing) * 100
+            }
+        }
+
+        return qualityScore * 0.4 + speedScore * 0.4 + pingScore * 0.2
     }
 }

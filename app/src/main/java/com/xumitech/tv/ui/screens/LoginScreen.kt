@@ -1,12 +1,9 @@
 package com.xumitech.tv.ui.screens
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,405 +11,243 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Visibility
-import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.xumitech.tv.AppState
-import com.xumitech.tv.data.MoonTvApi
-import com.xumitech.tv.ui.theme.Aqua
-import com.xumitech.tv.ui.theme.LoginGradientBottom
-import com.xumitech.tv.ui.theme.LoginGradientMid
-import com.xumitech.tv.ui.theme.LoginGradientTop
-import com.xumitech.tv.ui.theme.Primary
-import com.xumitech.tv.ui.theme.PrimaryDark
-import com.xumitech.tv.ui.theme.PrimaryLight
-import com.xumitech.tv.ui.theme.SkyBlue
+import com.xumitech.tv.ui.state.AppViewModel
+import com.xumitech.tv.ui.theme.Accent
+import com.xumitech.tv.ui.theme.BrandAqua
+import com.xumitech.tv.ui.theme.BrandSky
+import com.xumitech.tv.ui.theme.BrandViolet
+import com.xumitech.tv.ui.theme.ShapeLg
+import com.xumitech.tv.ui.theme.ShapeMd
 
-/**
- * 登录/注册页：服务器地址 + 用户名 + 密码。
- * 视觉：渐变背景 + 玻璃感卡片 + 圆角输入框。
- */
+/** 登录/注册页:深色影院氛围 + 品牌光晕 + 玻璃表单卡。 */
 @Composable
-fun LoginScreen(
-    appState: AppState,
-    onLoggedIn: () -> Unit,
-) {
-    var server by remember { mutableStateOf(MoonTvApi.DEFAULT_SERVER) }
+fun LoginScreen(vm: AppViewModel, modifier: Modifier = Modifier) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
+    var confirm by remember { mutableStateOf("") }
     var isRegister by remember { mutableStateOf(false) }
-    var showPassword by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    val server = remember { vm.ui.value.server }
+
+    fun submit() {
+        if (loading) return
+        error = null
+        when {
+            username.isBlank() -> error = "请输入用户名"
+            password.length < 6 -> error = "密码至少 6 位"
+            isRegister && password != confirm -> error = "两次输入的密码不一致"
+            else -> {
+                loading = true
+                val onDone: (Boolean, String?) -> Unit = { ok, msg ->
+                    loading = false
+                    if (!ok) error = msg ?: "操作失败"
+                }
+                if (isRegister) {
+                    vm.register(username.trim(), password, onDone)
+                } else {
+                    vm.login(username.trim(), password, onDone)
+                }
+            }
+        }
+    }
 
     Box(
-        Modifier
+        modifier = modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        com.xumitech.tv.ui.theme.LoginGradientTop,
-                        com.xumitech.tv.ui.theme.LoginGradientMid,
-                        com.xumitech.tv.ui.theme.LoginGradientBottom,
-                    ),
-                ),
-            ),
+            .background(Brush.verticalGradient(listOf(Color(0xFF0B0C12), Color(0xFF13101A), Color(0xFF08090C)))),
     ) {
-        // 顶部氛围光晕（紫蓝渐变，模拟液态玻璃受光）
+        // 品牌氛围光晕
         Box(
             Modifier
+                .size(220.dp)
                 .align(Alignment.TopCenter)
-                .size(380.dp, 340.dp)
-                .background(
-                    Brush.radialGradient(
-                        listOf(
-                            Primary.copy(alpha = 0.45f),
-                            SkyBlue.copy(alpha = 0.18f),
-                            Color.Transparent,
-                        ),
-                    ),
-                ),
+                .offset(y = (-40).dp)
+                .clip(CircleShape)
+                .background(Brush.radialGradient(listOf(BrandViolet.copy(alpha = 0.35f), Color.Transparent)))
+                .blur(40.dp),
         )
-        // 底部蓝色光晕
         Box(
             Modifier
-                .align(Alignment.BottomCenter)
-                .size(460.dp, 320.dp)
-                .background(
-                    Brush.radialGradient(
-                        listOf(
-                            SkyBlue.copy(alpha = 0.32f),
-                            Aqua.copy(alpha = 0.10f),
-                            Color.Transparent,
-                        ),
-                    ),
-                ),
+                .size(260.dp)
+                .align(Alignment.BottomStart)
+                .offset(x = (-80).dp, y = 60.dp)
+                .clip(CircleShape)
+                .background(Brush.radialGradient(listOf(BrandSky.copy(alpha = 0.28f), Color.Transparent)))
+                .blur(50.dp),
         )
-        // 左侧紫色氛围
         Box(
             Modifier
-                .align(Alignment.CenterStart)
-                .size(300.dp, 360.dp)
-                .background(
-                    Brush.radialGradient(
-                        listOf(
-                            PrimaryDark.copy(alpha = 0.28f),
-                            Color.Transparent,
-                        ),
-                    ),
-                ),
+                .size(200.dp)
+                .align(Alignment.BottomEnd)
+                .offset(x = 40.dp, y = 30.dp)
+                .clip(CircleShape)
+                .background(Brush.radialGradient(listOf(BrandAqua.copy(alpha = 0.20f), Color.Transparent)))
+                .blur(40.dp),
         )
+
         Column(
-            Modifier
+            modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .imePadding()
                 .padding(horizontal = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            Spacer(Modifier.height(40.dp))
-
-            // Logo 区（紫 → 蓝 → 青 液态渐变）
+            Spacer(Modifier.height(48.dp))
+            // Logo
             Box(
                 Modifier
-                    .size(76.dp)
-                    .background(
-                        Brush.linearGradient(
-                            listOf(Primary, SkyBlue, Aqua),
-                        ),
-                        RoundedCornerShape(24.dp),
-                    ),
+                    .size(84.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Brush.linearGradient(listOf(BrandViolet, BrandSky, BrandAqua))),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("须", color = Color.White, fontSize = 36.sp, fontWeight = FontWeight.ExtraBold)
+                Text("须", fontSize = 40.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(20.dp))
             Text(
-                "须弥Media",
-                color = Color.White,
+                server,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onBackground,
             )
             Text(
-                "聚合搜索 · 优选测速 · 云端收藏续播",
-                color = Color.White.copy(alpha = 0.6f),
-                fontSize = 13.sp,
-                modifier = Modifier.padding(top = 4.dp),
+                "聚合影视 · 一搜即看",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(Modifier.height(36.dp))
+            Spacer(Modifier.height(40.dp))
 
-            // 输入卡片（液态玻璃质感：半透明 + 顶部受光 + 细边框 + 品牌色渐变描边）
+            // 表单卡
             Column(
-                Modifier
+                modifier = Modifier
                     .fillMaxWidth()
+                    .clip(ShapeLg)
                     .background(
-                        Brush.verticalGradient(
-                            listOf(
-                                Color(0xFF232739).copy(alpha = 0.92f),
-                                Color(0xFF14161F).copy(alpha = 0.85f),
-                            ),
-                        ),
-                        RoundedCornerShape(24.dp),
-                    )
-                    .border(
-                        1.dp,
-                        Brush.linearGradient(
-                            listOf(
-                                Color.White.copy(alpha = 0.14f),
-                                Primary.copy(alpha = 0.25f),
-                                SkyBlue.copy(alpha = 0.18f),
-                            ),
-                        ),
-                        RoundedCornerShape(24.dp),
+                        if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
+                            Color(0xFF14161F).copy(alpha = 0.86f)
+                        } else {
+                            Color.White.copy(alpha = 0.9f)
+                        },
                     )
                     .padding(20.dp),
             ) {
-                // 顶部受光（玻璃高光）
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(36.dp)
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(Color.White.copy(alpha = 0.10f), Color.Transparent),
-                            ),
-                            RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                        ),
-                )
-                Text(
-                    if (isRegister) "创建账号" else "欢迎回来",
-                    color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-                Spacer(Modifier.height(16.dp))
-
-                OutlinedTextField(
-                    value = server,
-                    onValueChange = { server = it },
-                    label = { Text("服务器地址") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = loginFieldColors(),
-                )
-                Spacer(Modifier.height(10.dp))
                 OutlinedTextField(
                     value = username,
                     onValueChange = { username = it },
+                    modifier = Modifier.fillMaxWidth(),
                     label = { Text("用户名") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = loginFieldColors(),
+                    shape = ShapeMd,
                 )
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
+                    modifier = Modifier.fillMaxWidth(),
                     label = { Text("密码") },
                     singleLine = true,
-                    visualTransformation = if (showPassword) VisualTransformation.None
-                    else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    trailingIcon = {
-                        IconButton(onClick = { showPassword = !showPassword }) {
-                            Icon(
-                                if (showPassword) Icons.Rounded.VisibilityOff
-                                else Icons.Rounded.Visibility,
-                                contentDescription = "显示密码",
-                                tint = Color.White.copy(alpha = 0.5f),
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = loginFieldColors(),
+                    visualTransformation = PasswordVisualTransformation(),
+                    shape = ShapeMd,
                 )
-                if (isRegister) {
-                    Spacer(Modifier.height(10.dp))
-                    OutlinedTextField(
-                        value = confirmPassword,
-                        onValueChange = { confirmPassword = it },
-                        label = { Text("确认密码") },
-                        singleLine = true,
-                        visualTransformation = if (showPassword) VisualTransformation.None
-                        else PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = loginFieldColors(),
-                    )
+                AnimatedVisibility(isRegister, enter = fadeIn(), exit = fadeOut()) {
+                    Column {
+                        Spacer(Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = confirm,
+                            onValueChange = { confirm = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("确认密码") },
+                            singleLine = true,
+                            visualTransformation = PasswordVisualTransformation(),
+                            shape = ShapeMd,
+                        )
+                    }
                 }
-
                 if (error != null) {
                     Spacer(Modifier.height(10.dp))
                     Text(
                         error!!,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
-                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
-
-                Spacer(Modifier.height(18.dp))
-                // 品牌渐变登录按钮（紫→蓝→青 液态渐变 + 顶部受光 + 按压鼓胀）
-                val loginInteraction = remember { MutableInteractionSource() }
-                val loginPressed by loginInteraction.collectIsPressedAsState()
-                val loginScale = remember { Animatable(1f) }
-                LaunchedEffect(loginPressed) {
-                    loginScale.animateTo(
-                        if (loginPressed) 0.96f else 1f,
-                        spring(dampingRatio = 0.5f, stiffness = 500f),
-                    )
-                }
-                Box(
-                    Modifier
+                Spacer(Modifier.height(20.dp))
+                Button(
+                    onClick = { submit() },
+                    modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp)
-                        .scale(loginScale.value)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(
-                            Brush.linearGradient(
-                                listOf(Primary, SkyBlue, Aqua),
-                            ),
-                        )
-                        .clickable(
-                            interactionSource = loginInteraction,
-                            indication = null,
-                            enabled = !loading,
-                        ) {
-                            val serverTrimmed = server.trim()
-                            if (serverTrimmed.isBlank()) {
-                                error = "请填写服务器地址"
-                                return@clickable
-                            }
-                            if (!serverTrimmed.startsWith("http://") && !serverTrimmed.startsWith("https://")) {
-                                error = "服务器地址需以 http:// 或 https:// 开头"
-                                return@clickable
-                            }
-                            if (username.isBlank() || password.isBlank()) {
-                                error = "请填写完整信息"
-                                return@clickable
-                            }
-                            if (isRegister) {
-                                if (password.length < 6) {
-                                    error = "密码至少 6 位"
-                                    return@clickable
-                                }
-                                if (password != confirmPassword) {
-                                    error = "两次输入的密码不一致"
-                                    return@clickable
-                                }
-                            }
-                            loading = true
-                            error = null
-                            if (isRegister) {
-                                appState.register(serverTrimmed, username.trim(), password) { e ->
-                                    loading = false
-                                    if (e == null) onLoggedIn() else error = e
-                                }
-                            } else {
-                                appState.login(serverTrimmed, username.trim(), password) { e ->
-                                    loading = false
-                                    if (e == null) onLoggedIn() else error = e
-                                }
-                            }
-                        }
-                        .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(14.dp)),
-                    contentAlignment = Alignment.Center,
+                        .height(50.dp),
+                    enabled = !loading,
+                    shape = ShapeMd,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Accent,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
                 ) {
-                    // 顶部受光
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(24.dp)
-                            .align(Alignment.TopCenter)
-                            .background(
-                                Brush.verticalGradient(
-                                    listOf(Color.White.copy(alpha = 0.18f), Color.Transparent),
-                                ),
-                            ),
-                    )
                     if (loading) {
                         CircularProgressIndicator(
-                            color = Color.White,
-                            strokeWidth = 2.dp,
                             modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp,
                         )
                     } else {
                         Text(
-                            if (isRegister) "注册并登录" else "登 录",
-                            color = Color.White,
-                            fontSize = 16.sp,
+                            if (isRegister) "注册并进入" else "登 录",
                             fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
                         )
                     }
                 }
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
                 TextButton(
-                    onClick = {
-                        isRegister = !isRegister
-                        error = null
-                        confirmPassword = ""
-                    },
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                    onClick = { isRegister = !isRegister; error = null },
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(
-                        if (isRegister) "已有账号？去登录" else "没有账号？去注册",
-                        color = Color.White.copy(alpha = 0.6f),
-                        fontSize = 13.sp,
-                    )
+                    Text(if (isRegister) "已有账号？去登录" else "没有账号？去注册")
                 }
             }
-            Spacer(Modifier.height(40.dp))
+            Spacer(Modifier.height(28.dp))
+            Text(
+                "v3.0 · Dark Cinema",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.outline,
+            )
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
-
-/** 登录页输入框配色: 深色玻璃风格(任何主题下一致)。 */
-@Composable
-private fun loginFieldColors() = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-    focusedTextColor = Color.White,
-    unfocusedTextColor = Color.White.copy(alpha = 0.9f),
-    cursorColor = SkyBlue,
-    focusedBorderColor = PrimaryLight.copy(alpha = 0.7f),
-    unfocusedBorderColor = Color.White.copy(alpha = 0.18f),
-    focusedLabelColor = SkyBlue,
-    unfocusedLabelColor = Color.White.copy(alpha = 0.55f),
-    focusedContainerColor = Color.White.copy(alpha = 0.06f),
-    unfocusedContainerColor = Color.White.copy(alpha = 0.04f),
-)

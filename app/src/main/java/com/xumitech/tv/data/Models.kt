@@ -1,4 +1,4 @@
-package com.xumitech.tv.model
+package com.xumitech.tv.data
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -6,9 +6,11 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
-/** 搜索结果 / 详情（一个源的一条影片，含该源全部集数播放地址）。 */
+/** 搜索结果 / 详情(一个源的一条影片,含该源全部集数)。 */
+@Serializable
 data class SearchResult(
     val id: String = "",
     val title: String = "",
@@ -23,10 +25,7 @@ data class SearchResult(
     val typeName: String = "",
     val doubanId: Int = 0,
 ) {
-    /** 收藏/播放记录的 key：`source+id`。 */
     val key: String get() = "$source+$id"
-
-    /** 第 i 集的标题（下标从 0）。 */
     fun episodeTitle(i: Int): String {
         if (i >= 0 && i < episodesTitles.size) {
             val t = episodesTitles[i]
@@ -54,6 +53,7 @@ data class SearchResult(
 }
 
 /** 豆瓣推荐条目。 */
+@Serializable
 data class DoubanItem(
     val id: String = "",
     val title: String = "",
@@ -78,17 +78,18 @@ data class DoubanItem(
     }
 }
 
-/** 播放源（ApiSite，来自 /api/config/sources）。 */
+/** 播放源(ApiSite,来自 /api/config/sources)。 */
+@Serializable
 data class Source(
     val key: String = "",
     val name: String = "",
     val api: String = "",
     val detail: String? = null,
 ) {
-    /** 播放时用作 Referer 的地址（优先 detail，其次 api 的 host）。 */
+    /** 播放时用作 Referer 的地址(优先 detail,其次 api 的 host)。 */
     val referer: String
         get() {
-            val candidate = if (!detail.isNullOrEmpty()) detail!! else api
+            val candidate = if (!detail.isNullOrEmpty()) detail else api
             return try {
                 val u = java.net.URI(candidate)
                 if (!u.host.isNullOrEmpty()) "${u.scheme}://${u.host}/" else ""
@@ -107,8 +108,11 @@ data class Source(
     }
 }
 
-/** 收藏（对应后端 Favorite）。 */
+/** 收藏。 */
+@Serializable
 data class Favorite(
+    val id: String = "",
+    val source: String = "",
     val title: String = "",
     val sourceName: String = "",
     val cover: String = "",
@@ -117,6 +121,8 @@ data class Favorite(
     val searchTitle: String = "",
 ) {
     fun toJsonMap(): Map<String, Any?> = mapOf(
+        "id" to id,
+        "source" to source,
         "title" to title,
         "source_name" to sourceName,
         "cover" to cover,
@@ -127,6 +133,8 @@ data class Favorite(
 
     companion object {
         fun fromJson(j: JsonObject): Favorite = Favorite(
+            id = j.str("id"),
+            source = j.str("source"),
             title = j.str("title"),
             sourceName = j.str("source_name"),
             cover = j.str("cover"),
@@ -137,20 +145,25 @@ data class Favorite(
     }
 }
 
-/** 播放记录（对应后端 PlayRecord）。 */
+/** 播放记录。 */
+@Serializable
 data class PlayRecord(
+    val id: String = "",
+    val source: String = "",
     val title: String = "",
     val sourceName: String = "",
     val cover: String = "",
     val year: String = "",
-    val index: Int = 1, // 第几集（1 起）
+    val index: Int = 1,
     val totalEpisodes: Int = 0,
-    val playTime: Int = 0, // 秒
-    val totalTime: Int = 0, // 秒
+    val playTime: Int = 0,
+    val totalTime: Int = 0,
     val saveTime: Long = 0,
     val searchTitle: String = "",
 ) {
     fun toJsonMap(): Map<String, Any?> = mapOf(
+        "id" to id,
+        "source" to source,
         "title" to title,
         "source_name" to sourceName,
         "cover" to cover,
@@ -165,6 +178,8 @@ data class PlayRecord(
 
     companion object {
         fun fromJson(j: JsonObject): PlayRecord = PlayRecord(
+            id = j.str("id"),
+            source = j.str("source"),
             title = j.str("title"),
             sourceName = j.str("source_name"),
             cover = j.str("cover"),
@@ -179,8 +194,11 @@ data class PlayRecord(
     }
 }
 
-/** 追更（对应后端 Following）：追剧提醒 + 已看/未看集数统计。 */
+/** 追更。 */
+@Serializable
 data class Following(
+    val id: String = "",
+    val source: String = "",
     val sourceName: String = "",
     val totalEpisodes: Int = 0,
     val watchedEpisodes: Int = 0,
@@ -191,6 +209,8 @@ data class Following(
     val searchTitle: String = "",
 ) {
     fun toJsonMap(): Map<String, Any?> = mapOf(
+        "id" to id,
+        "source" to source,
         "source_name" to sourceName,
         "total_episodes" to totalEpisodes,
         "watched_episodes" to watchedEpisodes,
@@ -203,6 +223,8 @@ data class Following(
 
     companion object {
         fun fromJson(j: JsonObject): Following = Following(
+            id = j.str("id"),
+            source = j.str("source"),
             sourceName = j.str("source_name"),
             totalEpisodes = j.intOf("total_episodes"),
             watchedEpisodes = j.intOf("watched_episodes"),
@@ -216,6 +238,7 @@ data class Following(
 }
 
 /** 服务端配置。 */
+@Serializable
 data class ServerConfig(
     val siteName: String = "",
     val version: String = "",
@@ -229,6 +252,7 @@ data class ServerConfig(
 }
 
 /** 今日新更条目。 */
+@Serializable
 data class TodayUpdatedItem(
     val source: String = "",
     val id: String = "",
@@ -244,6 +268,7 @@ data class TodayUpdatedItem(
 )
 
 /** 今日新更记录。 */
+@Serializable
 data class TodayUpdatedRecord(
     val date: String = "",
     val items: List<TodayUpdatedItem> = emptyList(),
@@ -251,7 +276,7 @@ data class TodayUpdatedRecord(
     companion object {
         fun fromJson(j: JsonObject): TodayUpdatedRecord = TodayUpdatedRecord(
             date = j.str("date"),
-            items = (j["items"] as? JsonArray)?.mapNotNull { it as? JsonObject }
+            items = (j["items"] as? JsonArray)?.mapNotNull { (it as? JsonObject)?.jsonObject }
                 ?.map { o ->
                     TodayUpdatedItem(
                         source = o.str("source"),
@@ -271,7 +296,7 @@ data class TodayUpdatedRecord(
     }
 }
 
-/** 客户端聚合分组：同一影片在多个源下的结果归为一组。 */
+/** 客户端聚合分组:同一影片在多个源下的结果归为一组。 */
 data class VideoGroup(
     val title: String,
     val poster: String,
@@ -280,7 +305,6 @@ data class VideoGroup(
     val desc: String,
     val sources: List<SearchResult>,
 ) {
-    /** 归一化标题（去括号内容与空白），用于去重分组。 */
     companion object {
         fun normTitle(t: String): String {
             var s = t.trim()
@@ -291,7 +315,7 @@ data class VideoGroup(
             return s.lowercase()
         }
 
-        /** 把搜索结果按影片聚合（优先按豆瓣 id 去重，其次按规范化标题）。 */
+        /** 把搜索结果按影片聚合(优先豆瓣 id,其次规范化标题),同一源只保留集数最多的一条。 */
         fun group(results: List<SearchResult>): List<VideoGroup> {
             val map = linkedMapOf<String, MutableList<SearchResult>>()
             for (r in results) {
@@ -301,9 +325,6 @@ data class VideoGroup(
             val groups = mutableListOf<VideoGroup>()
             for ((_, list) in map) {
                 val first = list.first()
-                // 修复「500+ 重复播放源」：同一影片下按 **源 key 去重** —— 同一个源
-                // 常对同一部剧返回多条不同 id 的采集记录，全部保留会把播放源列表
-                // 撑到几百个。每个源只保留集数最多的一条，其余合并。
                 val best = linkedMapOf<String, SearchResult>()
                 for (r in list) {
                     val cur = best[r.source]
@@ -324,7 +345,6 @@ data class VideoGroup(
             return groups
         }
 
-        /** 从一组源里挑选第一个"有效"简介（非空且非占位符）。 */
         fun pickIntro(sources: List<SearchResult>, fallback: String = ""): String {
             for (s in sources) {
                 val d = cleanDesc(s.desc)
@@ -334,7 +354,6 @@ data class VideoGroup(
             return cleanDesc(fallback)
         }
 
-        /** 清理简介中的 HTML 标签与多余空白（与后端 cleanHtmlTags 对齐）。 */
         fun cleanDesc(input: String): String {
             if (input.isEmpty()) return ""
             return input
@@ -344,7 +363,6 @@ data class VideoGroup(
                 .trim()
         }
 
-        /** 判定是否为"暂无简介 / 剧情简介暂缺 / 敬请期待"等占位符。 */
         fun isPlaceholder(d: String): Boolean {
             if (d.length <= 4) return true
             return Regex(

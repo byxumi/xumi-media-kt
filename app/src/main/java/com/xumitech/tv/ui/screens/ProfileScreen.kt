@@ -7,24 +7,27 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.AdminPanelSettings
-import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.DarkMode
-import androidx.compose.material.icons.rounded.LockReset
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.material.icons.automirrored.rounded.Logout
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,290 +35,203 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.xumitech.tv.AppState
-import com.xumitech.tv.AuthState
-import com.xumitech.tv.BuildConfig
+import com.xumitech.tv.ui.state.AppUiState
+import com.xumitech.tv.ui.state.AppViewModel
+import com.xumitech.tv.ui.state.AuthState
+import com.xumitech.tv.ui.theme.Accent
+import com.xumitech.tv.ui.theme.ShapeLg
 
-/** 我的页：用户信息 + 设置入口。 */
+/** 我的页:用户卡 + 设置入口。 */
 @Composable
 fun ProfileScreen(
-    appState: AppState,
-    onLogout: () -> Unit,
-    onOpenAdmin: () -> Unit = {},
+    vm: AppViewModel,
+    ui: AppUiState,
+    modifier: Modifier = Modifier,
+    onOpenAdmin: () -> Unit,
 ) {
-    val username = (appState.authState as? AuthState.LoggedIn)?.username ?: ""
-    val isAdmin = (appState.authState as? AuthState.LoggedIn)?.isAdmin ?: false
-    var showChangePassword by remember { mutableStateOf(false) }
+    var showLogout by remember { mutableStateOf(false) }
+    var showAbout by remember { mutableStateOf(false) }
+    val username = (ui.auth as? AuthState.LoggedIn)?.username ?: ""
 
     Column(
-        Modifier
-            .fillMaxWidth()
+        modifier = modifier
+            .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(bottom = 32.dp),
+            .padding(horizontal = 20.dp),
     ) {
-        // 用户卡片
+        Spacer(Modifier.height(20.dp))
+        // 用户卡
         Row(
-            Modifier
+            modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
                 .background(
-                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                    RoundedCornerShape(20.dp),
+                    Brush.linearGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.primaryContainer,
+                            MaterialTheme.colorScheme.surfaceVariant,
+                        ),
+                    ),
+                    shape = ShapeLg,
                 )
-                .padding(16.dp),
+                .padding(20.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
                 Modifier
-                    .size(52.dp)
-                    .clip(CircleShape)
-                    .background(
-                        androidx.compose.ui.graphics.Brush.linearGradient(
-                            listOf(
-                                MaterialTheme.colorScheme.primary,
-                                Color(0xFF0EA5E9),
-                            ),
-                        ),
-                    ),
+                    .size(56.dp)
+                    .background(Brush.linearGradient(listOf(Accent, Color(0xFF8A6A3B))), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    username.take(1).uppercase().ifEmpty { "须" },
-                    color = Color.White,
-                    fontSize = 22.sp,
+                    username.take(1).ifBlank { "?" },
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onPrimary,
                 )
             }
-            Spacer(Modifier.width(14.dp))
-            Column {
+            Column(Modifier.padding(start = 16.dp)) {
+                Text(username, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Text(
-                    username.ifEmpty { "未登录" },
-                    fontSize = 19.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    if (isAdmin) "管理员" else "普通用户",
-                    fontSize = 12.sp,
-                    color = if (isAdmin) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    if ((ui.auth as? AuthState.LoggedIn)?.isAdmin == true) "管理员" else "普通用户",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
         }
 
-        // 设置组
-        SettingsGroup {
-            // 深色模式：点击循环 system → dark → light
-            val themeLabel = when (appState.themeMode) {
-                "dark" -> "深色"
-                "light" -> "浅色"
-                else -> "随系统"
-            }
-            SettingsItem(
-                icon = Icons.Rounded.DarkMode,
-                title = "深色模式",
-                subtitle = themeLabel,
-                onClick = {
-                    val next = when (appState.themeMode) {
-                        "system" -> "dark"
-                        "dark" -> "light"
-                        else -> "system"
-                    }
-                    appState.updateThemeMode(next)
-                },
-            )
-            SettingsItem(
-                icon = Icons.Rounded.LockReset,
-                title = "修改密码",
-                subtitle = null,
-                onClick = { showChangePassword = true },
-            )
-            if (isAdmin) {
-                SettingsItem(
-                    icon = Icons.Rounded.AdminPanelSettings,
-                    title = "管理后台",
-                    subtitle = "站点配置",
-                    onClick = onOpenAdmin,
-                )
-            }
-            SettingsItem(
-                icon = Icons.Rounded.Info,
-                title = "关于",
-                subtitle = "须弥Media v${BuildConfig.VERSION_NAME}",
-                onClick = {},
-            )
-            SettingsItem(
-                icon = Icons.AutoMirrored.Rounded.Logout,
-                title = "退出登录",
-                subtitle = null,
-                danger = true,
-                onClick = onLogout,
+        Spacer(Modifier.height(24.dp))
+
+        // 设置列表
+        ProfileItem(
+            icon = if (ui.themeMode == "light") Icons.Rounded.LightMode else Icons.Rounded.DarkMode,
+            title = "外观",
+            subtitle = themeLabel(ui.themeMode),
+            onClick = { cycleTheme(vm, ui.themeMode) },
+        )
+        ProfileItem(
+            icon = Icons.Rounded.Info,
+            title = "关于",
+            subtitle = buildString {
+                append("须弥Media v3.0")
+                if (ui.serverVersion.isNotBlank()) append(" · 服务端 ${ui.serverVersion}")
+            },
+            onClick = { showAbout = true },
+        )
+        if ((ui.auth as? AuthState.LoggedIn)?.isAdmin == true) {
+            ProfileItem(
+                icon = Icons.Rounded.AdminPanelSettings,
+                title = "管理后台",
+                subtitle = "站点 / 数据源 / 用户 / 分类",
+                onClick = onOpenAdmin,
             )
         }
+
+        Spacer(Modifier.height(32.dp))
+        TextButton(
+            onClick = { showLogout = true },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(
+                Icons.AutoMirrored.Rounded.Logout,
+                null,
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.error,
+            )
+            Spacer(Modifier.size(6.dp))
+            Text("退出登录", color = MaterialTheme.colorScheme.error)
+        }
+        Spacer(Modifier.height(24.dp))
     }
 
-    if (showChangePassword) {
-        ChangePasswordDialog(
-            appState = appState,
-            onDismiss = { showChangePassword = false },
+    if (showLogout) {
+        AlertDialog(
+            onDismissRequest = { showLogout = false },
+            title = { Text("退出登录") },
+            text = { Text("确定要退出当前账号吗？") },
+            confirmButton = {
+                TextButton(onClick = { showLogout = false; vm.logout() }) {
+                    Text("退出", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogout = false }) { Text("取消") }
+            },
+        )
+    }
+
+    if (showAbout) {
+        AlertDialog(
+            onDismissRequest = { showAbout = false },
+            title = { Text("关于") },
+            text = {
+                Column {
+                    Text("须弥Media · 聚合影视客户端")
+                    Spacer(Modifier.height(8.dp))
+                    Text("版本 v3.0", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (ui.siteName.isNotBlank()) {
+                        Spacer(Modifier.height(4.dp))
+                        Text("站点 ${ui.siteName}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAbout = false }) { Text("好") }
+            },
         )
     }
 }
 
 @Composable
-private fun SettingsGroup(content: @Composable () -> Unit) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .background(
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                RoundedCornerShape(20.dp),
-            ),
-    ) {
-        content()
-    }
-}
-
-@Composable
-private fun SettingsItem(
-    icon: ImageVector,
+private fun ProfileItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
-    subtitle: String?,
+    subtitle: String,
     onClick: () -> Unit,
-    danger: Boolean = false,
 ) {
     Row(
-        Modifier
+        modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 15.dp),
+            .padding(vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        androidx.compose.material3.Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = if (danger) MaterialTheme.colorScheme.error
-            else MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(22.dp),
-        )
-        Spacer(Modifier.width(14.dp))
-        Text(
-            title,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            color = if (danger) MaterialTheme.colorScheme.error
-            else MaterialTheme.colorScheme.onSurface,
-        )
-        Spacer(Modifier.weight(1f))
-        if (subtitle != null) {
-            Text(
-                subtitle,
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
-            )
+        Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 14.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+            if (subtitle.isNotBlank()) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
-        androidx.compose.material3.Icon(
-            Icons.Rounded.ChevronRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-            modifier = Modifier.size(18.dp),
-        )
+        Text("›", color = MaterialTheme.colorScheme.outline, fontSize = 20.sp)
     }
 }
 
-@Composable
-private fun ChangePasswordDialog(
-    appState: AppState,
-    onDismiss: () -> Unit,
-) {
-    var oldPwd by remember { mutableStateOf("") }
-    var newPwd by remember { mutableStateOf("") }
-    var confirmPwd by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf<String?>(null) }
-    var loading by remember { mutableStateOf(false) }
+private fun themeLabel(mode: String): String = when (mode) {
+    "dark" -> "深色"
+    "light" -> "浅色"
+    else -> "跟随系统"
+}
 
-    androidx.compose.material3.AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("修改密码") },
-        text = {
-            Column {
-                androidx.compose.material3.OutlinedTextField(
-                    value = oldPwd,
-                    onValueChange = { oldPwd = it },
-                    label = { Text("旧密码") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(8.dp))
-                androidx.compose.material3.OutlinedTextField(
-                    value = newPwd,
-                    onValueChange = { newPwd = it },
-                    label = { Text("新密码（≥6位）") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(8.dp))
-                androidx.compose.material3.OutlinedTextField(
-                    value = confirmPwd,
-                    onValueChange = { confirmPwd = it },
-                    label = { Text("确认新密码") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                if (error != null) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        error!!,
-                        color = MaterialTheme.colorScheme.error,
-                        fontSize = 13.sp,
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            androidx.compose.material3.TextButton(
-                onClick = {
-                    when {
-                        oldPwd.isBlank() || newPwd.isBlank() -> error = "请填写完整"
-                        newPwd.length < 6 -> error = "新密码至少6位"
-                        newPwd != confirmPwd -> error = "两次密码不一致"
-                        else -> {
-                            loading = true
-                            appState.changePassword(oldPwd, newPwd) { e ->
-                                loading = false
-                                if (e == null) {
-                                    onDismiss()
-                                } else {
-                                    error = e
-                                }
-                            }
-                        }
-                    }
-                },
-                enabled = !loading,
-            ) {
-                if (loading) {
-                    androidx.compose.material3.CircularProgressIndicator(
-                        color = MaterialTheme.colorScheme.primary,
-                        strokeWidth = 2.dp,
-                        modifier = Modifier.size(16.dp),
-                    )
-                } else {
-                    Text("确定")
-                }
-            }
-        },
-        dismissButton = {
-            androidx.compose.material3.TextButton(onClick = onDismiss) {
-                Text("取消")
-            }
+private fun cycleTheme(vm: AppViewModel, current: String) {
+    vm.changeThemeMode(
+        when (current) {
+            "system" -> "dark"
+            "dark" -> "light"
+            else -> "system"
         },
     )
 }

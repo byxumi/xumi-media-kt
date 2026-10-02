@@ -1,212 +1,164 @@
 package com.xumitech.tv.ui.screens
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DeleteOutline
-import androidx.compose.material.icons.rounded.PlayCircleOutline
-import androidx.compose.material.icons.rounded.VideoLibrary
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import com.xumitech.tv.AppState
-import com.xumitech.tv.model.DoubanItem
-import com.xumitech.tv.model.PlayRecord
-import com.xumitech.tv.ui.components.EmptyState
-import com.xumitech.tv.ui.components.GradientProgressBar
-import com.xumitech.tv.ui.components.ListSkeleton
-import com.xumitech.tv.ui.theme.ScrimLight
+import com.xumitech.tv.DetailTarget
+import androidx.compose.foundation.clickable
+import com.xumitech.tv.data.PlayRecord
+import com.xumitech.tv.ui.components.SimpleEmpty
+import com.xumitech.tv.ui.components.formatPlayTime
+import com.xumitech.tv.ui.state.AppUiState
+import com.xumitech.tv.ui.state.AppViewModel
 
-/** 历史页：播放记录列表，点击续播，删除记录。 */
+/** 历史页:继续观看列表 + 单条删除。 */
 @Composable
 fun HistoryScreen(
-    appState: AppState,
-    onOpenItem: (DoubanItem) -> Unit,
-    onResume: (DoubanItem, Int, Long) -> Unit,
+    vm: AppViewModel,
+    ui: AppUiState,
+    modifier: Modifier = Modifier,
+    onOpenDetail: (DetailTarget) -> Unit,
 ) {
-    val records = appState.playRecords
-    val loading = appState.historyLoading
-
     LaunchedEffect(Unit) {
-        // 已有数据直接复用，避免切 tab 重复请求闪骨架
-        if (records.isEmpty()) appState.loadPlayRecords()
+        if (ui.playRecords.isEmpty()) vm.loadPlayRecords()
     }
+    val records = ui.playRecords.values.sortedByDescending { it.saveTime }
 
-    Column(Modifier.fillMaxSize()) {
-        Text(
-            "观看历史",
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-        )
-        when {
-            loading && records.isEmpty() -> ListSkeleton()
-            records.isEmpty() -> EmptyState(
-                "还没有观看记录",
-                icon = Icons.Rounded.VideoLibrary,
-                hint = "看过的影片会在这里记录进度",
+    Column(modifier = modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "观看历史",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f),
             )
-            else -> {
-                // 按保存时间倒序
-                val sorted = records.values.sortedByDescending { it.saveTime }
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 32.dp),
-                ) {
-                    items(sorted, key = { it.title + it.sourceName + it.index + it.saveTime }) { r ->
-                        HistoryItem(
-                            record = r,
-                            onClick = {
-                                onResume(
-                                    DoubanItem(
-                                        id = "",
-                                        title = r.title,
-                                        poster = r.cover,
-                                        source = "",
-                                        sourceName = r.sourceName,
-                                        year = r.year,
-                                    ),
-                                    r.index - 1,
-                                    r.playTime.toLong(),
-                                )
-                            },
-                            onDelete = {
-                                // 用 source+title 构造 key 删除
-                                val key = findKey(records, r)
-                                if (key != null) appState.removeRecord(key)
-                            },
-                        )
-                    }
+            if (records.isNotEmpty()) {
+                TextButton(onClick = {
+                    records.forEach { vm.removePlayRecord(playRecordKey(it)) }
+                }) {
+                    Text("清空", color = MaterialTheme.colorScheme.error)
+                }
+            }
+        }
+
+        if (records.isEmpty()) {
+            SimpleEmpty(
+                text = "还没有观看记录",
+                subtitle = "看完的内容会出现在这里",
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                items(records, key = { it.title + it.sourceName + it.saveTime }) { r: PlayRecord ->
+                    HistoryRow(record = r, onClick = { onOpenDetail(recordTarget(r)) }, onDelete = { vm.removePlayRecord(playRecordKey(r)) })
                 }
             }
         }
     }
 }
 
-private fun findKey(records: Map<String, PlayRecord>, target: PlayRecord): String? {
-    return records.entries.firstOrNull { (_, v) ->
-        v.title == target.title && v.sourceName == target.sourceName &&
-            v.index == target.index && v.saveTime == target.saveTime
-    }?.key
-}
-
 @Composable
-private fun HistoryItem(
-    record: PlayRecord,
-    onClick: () -> Unit,
-    onDelete: () -> Unit,
-) {
-    val progress = if (record.totalTime > 0) {
-        (record.playTime.toFloat() / record.totalTime).coerceIn(0f, 1f)
-    } else 0f
-
+private fun HistoryRow(record: PlayRecord, onClick: () -> Unit, onDelete: () -> Unit) {
     Row(
-        Modifier
+        modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
-            .clickable(onClick = onClick),
+            .clickableRow(onClick),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // 封面
-        Box(
-            Modifier
-                .width(96.dp)
-                .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(10.dp)),
+        com.xumitech.tv.ui.components.PosterTile(
+            title = record.title,
+            poster = record.cover,
+            width = 84.dp,
+            onClick = onClick,
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 12.dp),
         ) {
-            AsyncImage(
-                model = record.cover,
-                contentDescription = record.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(ScrimLight),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Rounded.PlayCircleOutline,
-                    contentDescription = "继续播放",
-                    tint = Color.White,
-                    modifier = Modifier.size(28.dp),
-                )
-            }
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
             Text(
-                text = record.title,
+                record.title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                overflow = TextOverflow.Ellipsis,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             )
-            Spacer(Modifier.height(3.dp))
-            Text(
-                text = if (record.totalEpisodes > 1) {
-                    "${record.sourceName} · 第${record.index}集 / 共${record.totalEpisodes}集"
-                } else {
-                    record.sourceName
-                },
-                maxLines = 1,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-            )
-            Spacer(Modifier.height(8.dp))
-            // 进度条（公共组件）
-            GradientProgressBar(progress, height = 4.dp)
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "${formatTime(record.playTime)} / ${formatTime(record.totalTime)}",
+                "第${record.index}集 · ${record.sourceName}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+            // 进度条
+            val progress = if (record.totalTime > 0) (record.playTime.toFloat() / record.totalTime).coerceIn(0f, 1f) else 0f
+            androidx.compose.material3.LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxWidth().height(4.dp),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                formatPlayTime(record.playTime),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         IconButton(onClick = onDelete) {
             Icon(
                 Icons.Rounded.DeleteOutline,
-                contentDescription = "删除记录",
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
-                modifier = Modifier.size(20.dp),
+                "删除记录",
+                tint = MaterialTheme.colorScheme.outline,
             )
         }
     }
 }
 
-private fun formatTime(sec: Int): String {
-    if (sec < 0) return "00:00"
-    val h = sec / 3600
-    val m = (sec % 3600) / 60
-    val s = sec % 60
-    return if (h > 0) "%d:%02d:%02d".format(h, m, s)
-    else "%02d:%02d".format(m, s)
-}
+private fun Modifier.clickableRow(onClick: () -> Unit): Modifier =
+    this.then(
+        Modifier
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick),
+    )
+
+private fun recordTarget(r: PlayRecord) = DetailTarget(
+    id = r.id.takeIf { it.isNotBlank() } ?: r.title,
+    source = r.source.takeIf { it.isNotBlank() } ?: r.sourceName,
+    title = r.title,
+    poster = r.cover,
+    year = r.year,
+)
+
+private fun playRecordKey(r: PlayRecord): String = if (r.source.isNotBlank() && r.id.isNotBlank()) "${r.source}+${r.id}" else r.title
