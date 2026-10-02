@@ -317,12 +317,14 @@ fun PlayScreen(
         exitFullscreen()
     }
 
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
-        // 视频画布：非全屏 16:9，全屏铺满
+    // 垂直布局：视频在上、信息区在下（全屏时视频铺满、信息区隐藏）。
+    // 注意不能用 Box——Box 子元素互相堆叠，信息区会盖在视频画面上。
+    Column(Modifier.fillMaxSize().background(Color.Black)) {
+        // 视频画布：非全屏 16:9，全屏铺满（weight 与 aspectRatio 二选一，结构不变避免 PlayerView 重建）
         Box(
             Modifier
                 .fillMaxWidth()
-                .then(if (isFullscreen) Modifier.fillMaxSize() else Modifier.aspectRatio(16f / 9f))
+                .then(if (isFullscreen) Modifier.weight(1f) else Modifier.aspectRatio(16f / 9f))
                 .background(Color.Black),
         ) {
             val p = player
@@ -456,7 +458,7 @@ fun PlayScreen(
             }
 
             // 倍速面板（玻璃卡片）
-            AnimatedVisibility(
+            androidx.compose.animation.AnimatedVisibility(
                 visible = speedMenuOpen,
                 enter = fadeIn(),
                 exit = fadeOut(),
@@ -537,7 +539,7 @@ fun PlayScreen(
         if (!isFullscreen) {
             Column(
                 Modifier
-                    .fillMaxSize()
+                    .weight(1f)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp)
                     .navigationBarsPadding(),
