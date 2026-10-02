@@ -56,7 +56,8 @@ fun HistoryScreen(
     val loading = appState.historyLoading
 
     LaunchedEffect(Unit) {
-        appState.loadPlayRecords()
+        // 已有数据直接复用，避免切 tab 重复请求闪骨架
+        if (records.isEmpty()) appState.loadPlayRecords()
     }
 
     Column(Modifier.fillMaxSize()) {

@@ -18,13 +18,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Explore
-import androidx.compose.material.icons.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Icon
@@ -105,7 +102,11 @@ fun HomeScreen(
 
     LaunchedEffect(Unit) {
         appState.loadHome()
-        appState.loadAll()
+        // 收藏/记录/追更/搜索历史：已有内存缓存则跳过，避免切 tab 重复请求
+        if (appState.favorites.isEmpty()) appState.loadFavorites()
+        if (appState.playRecords.isEmpty()) appState.loadPlayRecords()
+        if (appState.followings.isEmpty()) appState.loadFollowings()
+        if (appState.searchHistory.isEmpty()) appState.loadSearchHistory()
     }
 
     PullToRefreshBox(
@@ -162,32 +163,37 @@ fun HomeScreen(
                 SectionHeader("我的追更")
             }
             item {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                // LazyVerticalGrid 不能嵌套在 LazyColumn item 内（无限高度会崩溃），
+                // 这里按行手动切分，每行 2 个
+                Column(
+                    Modifier.padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    items(followings, key = { it.first }) { (key, f) ->
-                        FollowingCard(
-                            title = f.title,
-                            poster = f.cover,
-                            watchedEpisodes = f.watchedEpisodes,
-                            totalEpisodes = f.totalEpisodes,
-                            onClick = {
-                                onOpenItem(
-                                    DoubanItem(
-                                        id = "",
-                                        title = f.title,
-                                        poster = f.cover,
-                                        source = "",
-                                        sourceName = f.sourceName,
-                                        year = f.year,
-                                    ),
+                    followings.chunked(2).forEach { rowItems ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            rowItems.forEach { (key, f) ->
+                                FollowingCard(
+                                    title = f.title,
+                                    poster = f.cover,
+                                    watchedEpisodes = f.watchedEpisodes,
+                                    totalEpisodes = f.totalEpisodes,
+                                    onClick = {
+                                        onOpenItem(
+                                            DoubanItem(
+                                                id = "",
+                                                title = f.title,
+                                                poster = f.cover,
+                                                source = "",
+                                                sourceName = f.sourceName,
+                                                year = f.year,
+                                            ),
+                                        )
+                                    },
+                                    modifier = Modifier.weight(1f),
                                 )
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                            }
+                            if (rowItems.size == 1) Spacer(Modifier.weight(1f))
+                        }
                     }
                 }
             }
@@ -199,32 +205,36 @@ fun HomeScreen(
                 SectionHeader("今日新更", subtitle = today?.date?.takeIf { it.isNotBlank() })
             }
             item {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                // LazyVerticalGrid 不能嵌套在 LazyColumn item 内，同样按行切分
+                Column(
+                    Modifier.padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    items(todayItems, key = { it.source + it.id + it.title }) { it ->
-                        TodayUpdatedCard(
-                            title = it.title,
-                            poster = it.poster,
-                            sourceName = it.sourceName,
-                            newEpisodes = it.newEpisodes,
-                            onClick = {
-                                onOpenItem(
-                                    DoubanItem(
-                                        id = "",
-                                        title = it.title,
-                                        poster = it.poster,
-                                        source = "",
-                                        sourceName = it.sourceName,
-                                        year = it.year,
-                                    ),
+                    todayItems.chunked(2).forEach { rowItems ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            rowItems.forEach { it ->
+                                TodayUpdatedCard(
+                                    title = it.title,
+                                    poster = it.poster,
+                                    sourceName = it.sourceName,
+                                    newEpisodes = it.newEpisodes,
+                                    onClick = {
+                                        onOpenItem(
+                                            DoubanItem(
+                                                id = "",
+                                                title = it.title,
+                                                poster = it.poster,
+                                                source = "",
+                                                sourceName = it.sourceName,
+                                                year = it.year,
+                                            ),
+                                        )
+                                    },
+                                    modifier = Modifier.weight(1f),
                                 )
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                            }
+                            if (rowItems.size == 1) Spacer(Modifier.weight(1f))
+                        }
                     }
                 }
             }
@@ -407,7 +417,7 @@ private fun ContinueRow(
             )
         }
         Icon(
-            Icons.Rounded.KeyboardArrowRight,
+            Icons.AutoMirrored.Rounded.KeyboardArrowRight,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
             modifier = Modifier.size(20.dp),
@@ -425,9 +435,12 @@ private fun HomeHeader(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 appState.siteName,
-                style = MaterialTheme.typography.displayLarge,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
             )
             Spacer(Modifier.width(8.dp))
             val uname = (appState.authState as? com.xumitech.tv.AuthState.LoggedIn)?.username ?: ""
@@ -437,7 +450,7 @@ private fun HomeHeader(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f, fill = false),
             )
             // 分类榜单入口
             Box(

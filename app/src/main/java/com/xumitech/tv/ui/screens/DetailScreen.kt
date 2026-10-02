@@ -23,7 +23,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.NotificationsActive
@@ -276,7 +276,7 @@ private fun DetailContent(
                         ),
                 ) {
                     Icon(
-                        Icons.Rounded.ArrowBack,
+                        Icons.AutoMirrored.Rounded.ArrowBack,
                         contentDescription = "返回",
                         tint = Color.White,
                     )

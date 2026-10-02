@@ -20,7 +20,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.MovieFilter
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -152,7 +152,7 @@ fun DiscoverScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onClose) {
-                Icon(Icons.Rounded.ArrowBack, contentDescription = "返回")
+                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "返回")
             }
             Text(
                 "分类 · 榜单",
@@ -182,7 +182,7 @@ fun DiscoverScreen(
                         tab.label,
                         fontSize = 13.sp,
                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (selected) Color.White
+                        color = if (selected) MaterialTheme.colorScheme.onPrimary
                         else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     )
                 }

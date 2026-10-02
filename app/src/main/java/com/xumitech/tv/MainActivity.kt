@@ -23,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -86,13 +87,26 @@ private fun MainScaffold(
     appState: AppState,
     onLogout: () -> Unit,
 ) {
-    var tab by remember { mutableIntStateOf(0) }
-    var searchOpen by remember { mutableStateOf(false) }
+    var tab by rememberSaveable { mutableIntStateOf(0) }
+    var searchOpen by rememberSaveable { mutableStateOf(false) }
     var openItem by remember { mutableStateOf<DoubanItem?>(null) }
     // 历史续播：携带初始集 + 断点秒数
     var resumeRequest by remember { mutableStateOf<Triple<DoubanItem, Int, Long>?>(null) }
-    var discoverOpen by remember { mutableStateOf(false) }
-    var adminOpen by remember { mutableStateOf(false) }
+    var discoverOpen by rememberSaveable { mutableStateOf(false) }
+    var adminOpen by rememberSaveable { mutableStateOf(false) }
+
+    // 覆盖层互斥：进入任一全屏页时关闭其他覆盖层，避免多层叠加的交互混乱
+    fun openDetail(item: DoubanItem, episode: Int = 0, startSec: Long = 0L) {
+        searchOpen = false
+        discoverOpen = false
+        adminOpen = false
+        if (episode > 0 || startSec > 0L) resumeRequest = Triple(item, episode, startSec)
+        else openItem = item
+    }
+    fun closeDetail() {
+        openItem = null
+        resumeRequest = null
+    }
 
     val tabs = listOf(
         NavTab("首页", Icons.Rounded.Home, Icons.Rounded.Home),
@@ -116,15 +130,18 @@ private fun MainScaffold(
                 0 -> HomeScreen(
                     appState = appState,
                     onSearch = { searchOpen = true },
-                    onOpenItem = { openItem = it },
-                    onOpenDiscover = { discoverOpen = true },
+                    onOpenItem = { item -> openDetail(item) },
+                    onOpenDiscover = {
+                        searchOpen = false
+                        discoverOpen = true
+                    },
                 )
-                1 -> FavoritesScreen(appState, onOpenItem = { openItem = it })
+                1 -> FavoritesScreen(appState, onOpenItem = { item -> openDetail(item) })
                 2 -> HistoryScreen(
                     appState,
-                    onOpenItem = { openItem = it },
+                    onOpenItem = { item -> openDetail(item) },
                     onResume = { item, ep, sec ->
-                        resumeRequest = Triple(item, ep, sec)
+                        openDetail(item, ep, sec)
                     },
                 )
                 3 -> ProfileScreen(
@@ -142,8 +159,7 @@ private fun MainScaffold(
             appState = appState,
             onClose = { searchOpen = false },
             onOpenItem = {
-                searchOpen = false
-                openItem = it
+                openDetail(it)
             },
         )
     }
@@ -154,8 +170,7 @@ private fun MainScaffold(
             appState = appState,
             onClose = { discoverOpen = false },
             onOpenItem = {
-                discoverOpen = false
-                openItem = it
+                openDetail(it)
             },
         )
     }
@@ -173,10 +188,7 @@ private fun MainScaffold(
         DetailScreen(
             appState = appState,
             item = item,
-            onClose = {
-                openItem = null
-                resumeRequest = null
-            },
+            onClose = ::closeDetail,
             initialEpisode = ep,
             startPositionSec = sec,
         )

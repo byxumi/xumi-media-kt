@@ -42,7 +42,8 @@ fun FavoritesScreen(
     val loading = appState.favLoading
 
     LaunchedEffect(Unit) {
-        appState.loadFavorites()
+        // 已有数据直接复用（AppState 内存缓存 + 详情页本地增删），避免切 tab 重复请求闪骨架
+        if (favorites.isEmpty()) appState.loadFavorites()
     }
 
     Column(Modifier.fillMaxSize()) {
